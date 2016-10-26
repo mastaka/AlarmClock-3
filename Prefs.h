@@ -13,10 +13,10 @@
 + (float)prefVolume;
 + (void)setPrefVolume:(float)volume;
 
-+ (int)snoozeDuration;
++ (NSInteger)snoozeDuration;
 + (void)setSnoozeDuration:(int)time;
 
-+ (int)killDuration;
++ (NSInteger)killDuration;
 + (void)setKillDuration:(int)duration;
 
 // Easy Wake
@@ -29,7 +29,7 @@
 + (float)maxVolume;
 + (void)setMaxVolume:(float)volume;
 
-+ (int)easyWakeDuration;
++ (NSInteger)easyWakeDuration;
 + (void)setEasyWakeDuration:(int)duration;
 
 // Advanced

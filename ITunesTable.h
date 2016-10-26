@@ -7,7 +7,7 @@
 	NSArray *table;
 	
 	// Current playlist index
-	int playlistIndex;
+	NSInteger playlistIndex;
 	
 	// Search cache
 	NSMutableArray *strCache;
@@ -15,7 +15,7 @@
 }
 
 - (NSArray *)table;
-- (void)setPlaylist:(int)index;
+- (void)setPlaylist:(NSInteger)index;
 - (void)setSearchCriteria:(NSString *)searchStr;
 
 @end

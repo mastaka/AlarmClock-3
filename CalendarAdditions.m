@@ -1,6 +1,6 @@
 #import "CalendarAdditions.h"
 
-@implementation NSCalendarDate (CalendarAdditions)
+@implementation NSDate (CalendarAdditions)
 
 // FOR COMPARING DATES
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -10,7 +10,7 @@
  Note: If they represent the same date in time, this method returns false.
  Note: Doesn't take into effect the timeZone representation. Just the internal NSDate absolute time.
 **/
-- (BOOL)isEarlierDate:(NSCalendarDate *)anotherDate
+- (BOOL)isEarlierDate:(NSDate *)anotherDate
 {
 	return [self timeIntervalSinceDate:anotherDate] < 0;
 }
@@ -20,7 +20,7 @@
  Note: If they represent the same date in time, this method returns false.
  Note: Doesn't take into effect the timeZone representation. Just the internal NSDate absolute time.
 **/
-- (BOOL)isLaterDate:(NSCalendarDate *)anotherDate
+- (BOOL)isLaterDate:(NSDate *)anotherDate
 {
 	return [self timeIntervalSinceDate:anotherDate] > 0;
 }
@@ -37,13 +37,13 @@
 **/
 - (NSTimeInterval)intervalOfMinute
 {
-	double totalWithMillis = [self timeIntervalSinceReferenceDate] + [[self timeZone] secondsFromGMT];
-	int totalWithoutMillis = (int)totalWithMillis;
+	NSCalendar *calendar = [NSCalendar currentCalendar];
+	NSDateComponents *components = [calendar components:NSCalendarUnitSecond|NSCalendarUnitNanosecond fromDate:self];
 	
-	double sec = totalWithoutMillis % 60;
-	double mil = totalWithMillis - totalWithoutMillis;
+	double sec = components.second;
+	double nano = components.nanosecond;
 	
-	NSTimeInterval result = sec + mil;
+	NSTimeInterval result = sec + (nano * 1.0e-9);
 	//NSLog(@"intervalOfMinute: %f", result);
 	
 	return result;
@@ -58,13 +58,13 @@
  **/
 - (NSTimeInterval)intervalOfDay
 {
-	double totalWithMillis = [self timeIntervalSinceReferenceDate] + [[self timeZone] secondsFromGMT];
-	int totalWithoutMillis = (int)totalWithMillis;
+	NSCalendar *calendar = [NSCalendar currentCalendar];
+	NSDateComponents *components = [calendar components:NSCalendarUnitHour|NSCalendarUnitMinute|NSCalendarUnitSecond|NSCalendarUnitNanosecond fromDate:self];
 	
-	double sec = totalWithoutMillis % 86400;
-	double mil = totalWithMillis - totalWithoutMillis;
+	double sec = components.hour * 3600 + components.minute * 60 + components.second;
+	double nano = components.nanosecond;
 	
-	NSTimeInterval result = sec + mil;
+	NSTimeInterval result = sec + (nano * 1.0e-9);
 	//NSLog(@"intervalOfDay: %f", result);
 	
 	return result;
@@ -74,59 +74,44 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- Returns whether or not this calendarDate is in a leap year.
+ Returns the number of days in the current month for this calendarDate.
 **/
-- (BOOL)isLeapYear
+- (NSUInteger)daysInMonth
 {
-	// LEAP YEAR FORMULA
-	// 1. If the year is evenly divisible by 4, go to step 2. Otherwise, go to  step 5.
-	// 2. If the year is evenly divisible by 100, go to step 3. Otherwise, go to  step 4.
-	// 3. If the year is evenly divisible by 400, go to step 4. Otherwise, go to  step 5.
-	// 4. The year is a leap year (it has 366 days).
-	// 5. The year is not a leap year (it has 365 days).
-	
-	int currentYear = [self yearOfCommonEra];
-	
-	if(currentYear % 4 == 0)
-	{
-		if(currentYear % 100 == 0)
-		{
-			if(currentYear % 400 == 0)
-				return YES;
-		}
-		else
-			return YES;
-	}
-	
-	return NO;
+	NSCalendar *calendar = [NSCalendar currentCalendar];
+	NSRange days = [calendar rangeOfUnit:NSCalendarUnitDay
+								  inUnit:NSCalendarUnitMonth
+								 forDate:self];
+	return days.length;
 }
 
 /**
- Returns the number of days in the current month for this calendarDate.
-**/
-- (int)daysInMonth
+ Returns the number of months in the current year for this calendarDate.
+ Fixme: do we need it for some exotic calendar?
+ **/
+- (NSUInteger)monthsInYear
 {
-	switch([self monthOfYear])
-	{
-		case 2 : return [self isLeapYear] ? 29 : 28;
-		case 4 : return 30;
-		case 6 : return 30;
-		case 9 : return 30;
-		case 11: return 30;
-		default: return 31;
-	}
+	NSCalendar *calendar = [NSCalendar currentCalendar];
+	NSRange months = [calendar rangeOfUnit:NSCalendarUnitMonth
+									inUnit:NSCalendarUnitYear
+								   forDate:self];
+	return months.length;
+	
 }
 
 /**
  Returns the weekday of the first day of the month for this calendarDate.
 **/
-- (int)startingWeekdayOfMonth
+- (NSUInteger)startingWeekdayOfMonth
 {
-	int dayDiff = -1 * ([self dayOfMonth] - 1);
-	
-	NSCalendarDate *startingDay = [self dateByAddingYears:0 months:0 days:dayDiff hours:0 minutes:0 seconds:0];
-	
-	return [startingDay dayOfWeek];
+	NSCalendar *calendar = [NSCalendar currentCalendar];
+	NSDate *firstDayOfMonth;
+	[calendar rangeOfUnit:NSCalendarUnitMonth
+				startDate:&firstDayOfMonth
+				 interval:nil
+				  forDate:self];
+	NSUInteger weekday = [calendar component:NSCalendarUnitWeekday fromDate:firstDayOfMonth];
+	return weekday - 1;
 }
 
 // FOR ALTERING DATES
@@ -137,65 +122,74 @@
  Rolling means that if the time overflows for one field, it loops, and doesn't affect the other fields.
  IE - if the time was 4:55, and you rolled the time 6 minutes, it would now be 4:01
 **/
-- (NSCalendarDate *)dateByRollingYears:(int)year months:(int)month days:(int)day hours:(int)hour minutes:(int)minute seconds:(int)second
+- (NSDate *)dateByRollingYears:(int)year months:(int)month days:(int)day hours:(int)hour minutes:(int)minute seconds:(int)second
 {
+    NSCalendar *calendar = [NSCalendar currentCalendar];
+	NSDateComponents *components = [calendar components:NSCalendarUnitYear |
+									NSCalendarUnitMonth |
+									NSCalendarUnitDay |
+									NSCalendarUnitHour |
+									NSCalendarUnitMinute |
+									NSCalendarUnitSecond
+											   fromDate:self];
 	// Make the common case fast.
 	// Common case:  only one variable is being rolled.
 	
 	// Roll seconds (always 60)
-	int diffSec = 0;
 	if(second != 0)
 	{
-		diffSec = (([self secondOfMinute] + (second % 60) + 60) % 60) - [self secondOfMinute];
+		components.second = (components.second + second) % 60;
 	}
 	
 	// Roll minutes (always 60)
-	int diffMin = 0;
 	if(minute != 0)
 	{
-		diffMin = (([self minuteOfHour] + (minute % 60) + 60) % 60) - [self minuteOfHour];
+		components.minute = (components.minute + minute) % 60;
 	}
 	
 	// Roll hours (always 24)
-	int diffHour = 0;
 	if(hour != 0)
 	{
-		diffHour = (([self hourOfDay] + (hour % 24) + 24) % 24) - [self hourOfDay];
+		components.hour = (components.hour + hour) % 24;
 	}
 	
 	// Roll days (variable, starts @ 1)
-	int diffDay = 0;
 	if(day != 0)
 	{
-		int d = [self daysInMonth];
-		diffDay = ((([self dayOfMonth] - 1) + (day % d) + d) % d) - [self dayOfMonth] + 1;
+		NSUInteger d = [self daysInMonth];
+		components.day = ((components.day - 1) + day) % d + 1;
 	}
 	
-	// Roll months (always 12, starts @ 1)
-	int diffMonth = 0;
+	// Roll months (variable??, starts @ 1)
 	if(month != 0)
 	{
-		diffMonth = ((([self monthOfYear] - 1) + (month % 12) + 12) % 12) - [self monthOfYear] + 1;
+		NSUInteger m = [self monthsInYear];
+		components.month = ((components.month - 1) + month) % m + 1;
 	}
 	
-	return [self dateByAddingYears:year months:diffMonth days:diffDay hours:diffHour minutes:diffMin seconds:diffSec];
+	return [calendar dateFromComponents:components];
 }
 
 /**
  Returns a calendar date with the same local time as this one, for the new time zone.
  That is, if the local time for this date is 10:00AM, the local time for the new date will be 10:00AM in it's time zone.
 **/
-- (NSCalendarDate *)dateBySwitchingToTimeZone:(NSTimeZone *)newTimeZone
+- (NSDate *)dateBySwitchingToTimeZone:(NSTimeZone *)newTimeZone
 {
-	NSCalendarDate *result = [NSCalendarDate dateWithYear:[self yearOfCommonEra]
-													month:[self monthOfYear]
-													  day:[self dayOfMonth]
-													 hour:[self hourOfDay]
-												   minute:[self minuteOfHour]
-												   second:[self secondOfMinute]
-												 timeZone:newTimeZone];
+	NSCalendar *calendar = [NSCalendar currentCalendar];
+	NSDateComponents *components = [calendar components:NSCalendarUnitYear |
+									NSCalendarUnitMonth |
+									NSCalendarUnitDay |
+									NSCalendarUnitHour |
+									NSCalendarUnitMinute |
+									NSCalendarUnitSecond |
+									NSCalendarUnitTimeZone
+											   fromDate:self];
+	if (components.timeZone != newTimeZone) {
+		components.timeZone = newTimeZone;
+	}
 	
-	return result;
+	return [calendar dateFromComponents:components];
 }
 
 @end

@@ -72,7 +72,7 @@
  @param  index - Index (in array) of playlist to use.
  @result Table now contains all tracks in specified playlist.
 */
-- (void)setPlaylist:(int)index
+- (void)setPlaylist:(NSInteger)index
 {
 	// Store playlist index
 	playlistIndex = index;
@@ -95,7 +95,7 @@
 {
 	NSMutableArray *temp = [NSMutableArray array];
 	
-	NSArray *tracks = [[self playlistForIndex:playlistIndex] objectForKey:PLAYLIST_ITEMS];
+	NSArray *tracks = [[self playlistForIndex:(int)playlistIndex] objectForKey:PLAYLIST_ITEMS];
 	int i;
 	for(i=0; i<[tracks count]; i++)
 	{

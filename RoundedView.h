@@ -53,4 +53,6 @@
     IBOutlet id roundedController;
 }
 
+- (void)fade:(NSTimer *)aTimer;
+
 @end

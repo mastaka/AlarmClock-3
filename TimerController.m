@@ -43,7 +43,8 @@
 		// Intialize movie
 		NSBundle *thisBundle = [NSBundle bundleForClass:[self class]];
 		NSString *filePath = [[thisBundle resourcePath] stringByAppendingPathComponent:@"defaultTimer.m4a"];
-		movie = [[QTMovie alloc] initWithFile:filePath error:nil];
+		NSURL *url = [NSURL URLWithString:filePath];
+		movie = [[AVPlayer alloc] initWithURL:url];
 		
 		// Initialize localized strings
 		titleStr     = [NSLocalizedStringFromTable(@"Timer", @"TimerWindow", @"Initial title of timer") retain];
@@ -56,8 +57,8 @@
 		// Register for notifications
 		[[NSNotificationCenter defaultCenter] addObserver:self
 												 selector:@selector(movieFinished:)
-													 name:QTMovieDidEndNotification
-												   object:nil];
+													 name:AVPlayerItemDidPlayToEndTimeNotification
+												   object:movie.currentItem];
 	}
 	return self;
 }
@@ -76,9 +77,9 @@
 	// We also configure a minDate and maxDate
 	// This makes it easy to set the timer duration, and allows us to limit the duration
 	// We do it here instead of in interface builder, because we want the maxDate to include the 59 seconds
-	NSCalendarDate *minDate, *maxDate;
-	minDate = [NSCalendarDate dateWithYear:1982 month:5 day:20 hour:0 minute:0 second:0 timeZone:nil];
-	maxDate = [NSCalendarDate dateWithYear:1982 month:5 day:20 hour:23 minute:59 second:59 timeZone:nil];
+	NSDate *minDate, *maxDate;
+	minDate = [[NSCalendar currentCalendar] dateWithEra:1 year:1972 month:4 day:5 hour:0 minute:0 second:0 nanosecond:0];
+	maxDate = [[NSCalendar currentCalendar] dateWithEra:1 year:1972 month:4 day:5 hour:23 minute:59 second:59 nanosecond:0];
 	
 	[timeField setMinDate:minDate];
 	[timeField setMaxDate:maxDate];
@@ -403,7 +404,7 @@
 	
 	// Now we can decrease the time, but only if it doesn't put us below (or at) zero
 	int amountToDecrease;
-	if([[NSApp currentEvent] modifierFlags] & NSAlternateKeyMask)
+	if([[NSApp currentEvent] modifierFlags] & NSEventModifierFlagOption)
 		amountToDecrease = (60 * 5);
 	else
 		amountToDecrease = 60;
@@ -421,7 +422,7 @@
 - (void)rightModifierClicked
 {
 	// We can always simply increase the total time
-	if([[NSApp currentEvent] modifierFlags] & NSAlternateKeyMask)
+	if([[NSApp currentEvent] modifierFlags] & NSEventModifierFlagOption)
 		totalTime += (60 * 5);
 	else
 		totalTime += 60;
@@ -472,15 +473,14 @@
  Called prior to the system going to sleep.
  We need to return the time at which the timer will go off.
 **/
-- (NSCalendarDate *)systemWillSleep
+- (NSDate *)systemWillSleep
 {
 	if([timer isValid])
 	{
 		float timeLeft = totalTime - (elapsedTime + [[NSDate date] timeIntervalSinceDate:startDate]);
 		
 		// Now return the time at which the timer should go off
-		NSDate *temp = [NSDate dateWithTimeIntervalSinceNow:timeLeft];
-		return [temp dateWithCalendarFormat:nil timeZone:nil];
+		return [NSDate dateWithTimeIntervalSinceNow:timeLeft];
 	}
 	else
 	{
@@ -594,7 +594,7 @@
 	
 	[nameField setStringValue:titleStr];
 	
-	NSDate *currentDate = [[timeField minDate] addTimeInterval:totalTime];
+	NSDate *currentDate = [[timeField minDate] dateByAddingTimeInterval:totalTime];
 	[timeField setDateValue:currentDate];
 	
 	[alwaysOnTopButton setState:([[self window] level] == NSStatusWindowLevel) ? NSOnState: NSOffState];
@@ -602,7 +602,7 @@
 	[useAlarmVolumeButton setState:(useAlarmVolume) ? NSOnState : NSOffState];
 	
 	// Present the config sheet
-	[NSApp beginSheet:configPanel modalForWindow:[self window] modalDelegate:self didEndSelector:nil contextInfo:NULL];
+	[[self window] beginSheet:configPanel completionHandler:nil];
 }
 
 /**
@@ -628,7 +628,7 @@
 		{
 			float time = [[dict objectForKey:RECENT_TIME_KEY] floatValue];
 			
-			NSDate *currentDate = [[timeField minDate] addTimeInterval:time];
+			NSDate *currentDate = [[timeField minDate] dateByAddingTimeInterval:time];
 			[timeField setDateValue:currentDate];
 			
 			done = YES;
@@ -640,7 +640,7 @@
 {
 	// Close the configPanel and end the sheet
 	[configPanel orderOut:self];
-	[NSApp endSheet:configPanel];
+	[[self window] endSheet:configPanel returnCode:NSModalResponseOK];
 	
 	// Store the new name
 	// NSComboBox works in a somewhat unintuitive manner
@@ -674,7 +674,7 @@
 	{
 		NSMutableArray *mRecent = [[recent mutableCopy] autorelease];
 		
-		int i;
+		NSInteger i;
 		for(i = [mRecent count]-1; i >= 0; i--)
 		{
 			NSDictionary *dict = [mRecent objectAtIndex:i];

@@ -2,14 +2,14 @@
 
 @interface CalendarView : NSView
 {
-	NSCalendarDate *date;
+	NSDate *date;
 	NSImage *image;
 	NSMutableDictionary *attributes;
 	
-	int firstDayOfWeek;
+	NSUInteger firstDayOfWeek;
 	NSArray *weekdays;
 }
-- (void)setCalendarDate:(NSCalendarDate *)date withValidDay:(BOOL)flag;
-- (NSCalendarDate *)calendarDate;
+- (void)setCalendarDate:(NSDate *)date withValidDay:(BOOL)flag;
+- (NSDate *)calendarDate;
 
 @end

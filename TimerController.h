@@ -1,7 +1,7 @@
 /* TimerController */
 
 #import <Cocoa/Cocoa.h>
-#import <QTKit/QTKit.h>
+#import <AVFoundation/AVFoundation.h>
 
 #import "TransparentController.h"
 
@@ -20,7 +20,7 @@
 	BOOL useAlarmVolume;
 	
 	// Movie for playing sound
-	QTMovie *movie;
+	AVPlayer *movie;
 	
 	// Initial system volumes
 	// This is the volume the system was at before the alarm went off

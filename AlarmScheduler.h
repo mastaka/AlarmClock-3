@@ -22,13 +22,13 @@
 + (void)updateAllAlarms;
 
 // Getting number of alarms
-+ (int)numberOfAlarms;
++ (NSUInteger)numberOfAlarms;
 
 // Getting info about next and last alarm
 + (Alarm *)lastAlarmClone;
-+ (NSCalendarDate *)nextAlarmDate;
++ (NSDate *)nextAlarmDate;
 
 // Querying for sounding alarms
-+ (int)alarmStatus:(NSCalendarDate *)now;
++ (int)alarmStatus:(NSDate *)now;
 
 @end

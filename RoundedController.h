@@ -23,7 +23,7 @@
 - (void)rightButtonClicked;
 
 - (BOOL)canSystemSleep;
-- (NSCalendarDate *)systemWillSleep;
+- (NSDate *)systemWillSleep;
 - (void)systemDidWake;
 
 @end

@@ -12,7 +12,7 @@
 	if((self = [super initWithFrame:frameRect]) != nil)
 	{
 		// Initialize date
-		date = [[NSCalendarDate alloc] init];
+		date = [[NSDate alloc] init];
 		
 		// Setup image
 		NSBundle *bundle  = [NSBundle bundleForClass:[self class]];
@@ -23,7 +23,7 @@
 		NSFont *displayFont = [NSFont labelFontOfSize:[NSFont labelFontSize]];
 		
 		NSMutableParagraphStyle *paragraphStyle = [[[NSMutableParagraphStyle alloc] init] autorelease];
-		[paragraphStyle setAlignment:NSCenterTextAlignment];
+		[paragraphStyle setAlignment:NSTextAlignmentCenter];
 		
 		attributes = [[NSMutableDictionary alloc] initWithCapacity:2];
 		[attributes setObject:displayFont    forKey:NSFontAttributeName];
@@ -39,10 +39,10 @@
 		
 		// Setup weekdays array, which contains the initials for the days of the week
 		// The weekdays array is in the proper order for the current locale
-		NSArray *shortWeekDays = [[NSUserDefaults standardUserDefaults] arrayForKey:NSShortWeekDayNameArray];
-		
+		NSDateFormatter *formatter = [[[NSDateFormatter alloc] init] autorelease];
+		NSArray *shortWeekDays = [formatter shortWeekdaySymbols];
 		NSMutableArray *weekdaysTemp = [NSMutableArray arrayWithCapacity:7];
-		int i = firstDayOfWeek;
+		NSUInteger i = firstDayOfWeek;
 		while([weekdaysTemp count] < 7)
 		{
 			[weekdaysTemp addObject:[[shortWeekDays objectAtIndex:i] substringToIndex:1]];
@@ -79,33 +79,19 @@
  * If you set the validDay flag to false, the calendar will attempt to keep the day the same, and if that's not possible
  * then it will use the given day passed in the newDate parameter.
 **/
-- (void)setCalendarDate:(NSCalendarDate *)newDate withValidDay:(BOOL)flag
+- (void)setCalendarDate:(NSDate *)newDate withValidDay:(BOOL)flag
 {
-	if(flag)
+	NSCalendar *calendar = [NSCalendar currentCalendar];
+	NSDateComponents *newComponents = [calendar components:(NSCalendarUnitDay | NSCalendarUnitMonth | NSCalendarUnitYear) fromDate:newDate];
+	if(flag == false)
 	{
-		[date autorelease];
-		date = [[NSCalendarDate alloc] initWithYear:[newDate yearOfCommonEra]
-											  month:[newDate monthOfYear]
-												day:[newDate dayOfMonth]
-											   hour:0
-											 minute:0
-											 second:0
-										   timeZone:[NSTimeZone defaultTimeZone]];
-	}
-	else
-	{
-		int day = ([date dayOfMonth] > [date daysInMonth]) ? [date daysInMonth] : [date dayOfMonth];
+		NSDateComponents *components = [calendar components:(NSCalendarUnitDay | NSCalendarUnitMonth | NSCalendarUnitYear) fromDate:date];
+		NSInteger day = (components.day > [date daysInMonth]) ? [date daysInMonth] : components.day;
+		newComponents.day = day;
 		
-		[date autorelease];
-		date = [[NSCalendarDate alloc] initWithYear:[newDate yearOfCommonEra]
-											  month:[newDate monthOfYear]
-												day:day
-											   hour:0
-											 minute:0
-											 second:0
-										   timeZone:[NSTimeZone defaultTimeZone]];
 	}
-	
+	[date autorelease];
+	date = [[calendar dateFromComponents:newComponents] retain];
 	[self setNeedsDisplay:YES];
 }
 
@@ -113,7 +99,7 @@
  * Returns the date currently selected on the calendar.
  * The returned date is an autoreleased copy.
 **/
-- (NSCalendarDate *)calendarDate
+- (NSDate *)calendarDate
 {
 	return [[date copy] autorelease];
 }
@@ -130,7 +116,9 @@
 {
 	NSPoint pt = [self convertPoint:[event locationInWindow] fromView:nil];
 	
-	int firstCell = 0 - [date startingWeekdayOfMonth] + 1 + firstDayOfWeek;
+	NSCalendar *calendar = [NSCalendar currentCalendar];
+	NSDateComponents *components = [calendar components:(NSCalendarUnitDay | NSCalendarUnitMonth | NSCalendarUnitYear) fromDate:date];
+	NSInteger firstCell = 0 - [date startingWeekdayOfMonth] + 1 + firstDayOfWeek;
 	int offset = (firstCell > 1) ? -7 : 0;
 	
 	int row, col;
@@ -145,20 +133,19 @@
 			
 			if(pt.x >= x && pt.x <= x+17 && pt.y >= y && pt.y <=y+13)
 			{
-				int num = (row * 7) + col - [date startingWeekdayOfMonth] + 1 + firstDayOfWeek + offset;
-				
+				NSInteger num = (row * 7) + col - [date startingWeekdayOfMonth] + 1 + firstDayOfWeek + offset;
+
 				if(num > 0 && num <= [date daysInMonth])
 				{
-					if([date dayOfMonth] != num) different = YES;
+					if(components.day != num) different = YES;
 					
 					[date autorelease];
-					date = [[NSCalendarDate dateWithYear:[date yearOfCommonEra]
-												   month:[date monthOfYear] 
-													 day:num 
-													hour:0 
-												  minute:0 
-												  second:0 
-												timeZone:[date timeZone]] retain];
+					[components setDay:num];
+					[components setHour:0];
+					[components setMinute:0];
+					[components setSecond:0];
+					date = [calendar dateFromComponents:components];
+					
 					found = YES;
 				}
 			}
@@ -178,10 +165,7 @@
 - (void)drawRect:(NSRect)rect
 {	
 	// Draw background image
-	NSPoint pt1;
-	pt1.x = 0;
-	pt1.y = 113;
-	[image compositeToPoint:pt1 operation:NSCompositeSourceOver];
+	[image drawInRect:NSMakeRect(0, 0, 130, 113)];
 	
 	NSRect displayRect;
 	displayRect.size.width  = 17;
@@ -197,7 +181,10 @@
 	}
 	
 	// Draw days of the month
-	int firstCell = 0 - [date startingWeekdayOfMonth] + 1 + firstDayOfWeek;
+	NSCalendar *calendar = [NSCalendar currentCalendar];
+	NSInteger currentDay = [calendar component:NSCalendarUnitDay fromDate:date];
+	
+	NSInteger firstCell = 0 - [date startingWeekdayOfMonth] + 1 + firstDayOfWeek;
 	int offset = (firstCell > 1) ? -7 : 0;
 	
 	int row, col;
@@ -205,20 +192,20 @@
 	{
 		for(col = 0; col < 7; col++)
 		{
-			int num = (row * 7) + col - [date startingWeekdayOfMonth] + 1 + firstDayOfWeek + offset;
+			NSInteger num = (row * 7) + col - [date startingWeekdayOfMonth] + 1 + firstDayOfWeek + offset;
 			
 			displayRect.origin.x =  5 + (col * 17);
 			displayRect.origin.y = 21 + (row * 14);
 			
 			if(num > 0 && num <= [date daysInMonth])
 			{
-				if(num == [date dayOfMonth])
+				if(num == currentDay)
 				{
 					[[NSColor selectedTextBackgroundColor] set];
 					[NSBezierPath fillRect:displayRect];
 				}
 				
-				NSString *displayStr = [NSString stringWithFormat:@"%i",num];
+				NSString *displayStr = [NSString stringWithFormat:@"%lu", num];
 				[displayStr drawInRect:displayRect withAttributes:attributes];
 			}
 		}

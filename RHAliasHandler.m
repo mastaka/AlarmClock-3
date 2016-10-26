@@ -5,29 +5,18 @@
 
 /**
 Detects whether the file at the given path is an alias.
- 
- This is basically a Cocoa wrapper for FSIsAliasFile.
- This code was more of less copied from here:
- http://developer.apple.com/documentation/Cocoa/Conceptual/LowLevelFileMgmt/Tasks/ResolvingAliases.html
 **/
 + (BOOL)isAliasFile:(NSString *)path
 {
     BOOL isAlias = NO;
 	
-    CFURLRef url = CFURLCreateWithFileSystemPath(NULL, (CFStringRef)path, kCFURLPOSIXPathStyle, NO);
-    if(url != NULL)
+    NSString *uti = [[NSWorkspace sharedWorkspace] typeOfFile:path error:nil];
+
+    if(uti && [[NSWorkspace sharedWorkspace] type:uti conformsToType:(id)kUTTypeAliasFile])
     {
-		FSRef fileRef;
-        if(CFURLGetFSRef(url, &fileRef))
-        {
-            Boolean aliasFlag;
-            Boolean folderFlag;
-            FSIsAliasFile(&fileRef, &aliasFlag, &folderFlag);
-            if(aliasFlag)
-                isAlias = YES;
-        }
-        CFRelease(url);
+        isAlias = YES;
     }
+
     return isAlias;
 }
 
@@ -37,36 +26,32 @@ Detects whether the file at the given path is an alias.
  Aliases are special files which store a pointer to an iNode.
  Thus, aliases always work, even when the original file is moved.
  Aliases are the default shortcut mechanism created by the Finder.
- 
- This code was more of less copied from here:
- http://developer.apple.com/documentation/Cocoa/Conceptual/LowLevelFileMgmt/Tasks/ResolvingAliases.html
 **/
 + (NSString *)resolveAlias:(NSString *)path
 {
     NSString *resolvedPath = nil;
 	
-    CFURLRef url = CFURLCreateWithFileSystemPath(NULL, (CFStringRef)path, kCFURLPOSIXPathStyle, NO);
+    NSURL *url = [NSURL fileURLWithPath:path];
 	
-	if(url != NULL)
+	NSData* bookmarkData = [NSURL bookmarkDataWithContentsOfURL:url
+														  error:nil];
+    if (bookmarkData)
 	{
-		FSRef fileRef;
-		if(CFURLGetFSRef(url, &fileRef))
+		BOOL isStale = NO;
+		NSURLBookmarkResolutionOptions options = (NSURLBookmarkResolutionWithoutUI | NSURLBookmarkResolutionWithoutMounting);
+
+        NSURL* resolvedURL = [NSURL URLByResolvingBookmarkData:bookmarkData
+													   options:options
+												 relativeToURL:nil
+										   bookmarkDataIsStale:&isStale
+														 error:nil];
+    if (resolvedURL)
 		{
-			Boolean targetIsFolder, wasAliased;
-			if(FSResolveAliasFile(&fileRef, true, &targetIsFolder, &wasAliased) == noErr && wasAliased)
-			{
-				CFURLRef resolvedUrl = CFURLCreateFromFSRef(NULL, &fileRef);
-				if (resolvedUrl != NULL)
-				{
-					resolvedPath = (NSString *)CFURLCopyFileSystemPath(resolvedUrl, kCFURLPOSIXPathStyle);
-					CFRelease(resolvedUrl);
-				}
-			}
+			resolvedPath = url.absoluteString;
 		}
-		CFRelease(url);
 	}
 	
-	return [resolvedPath autorelease];
+	return resolvedPath;
 }
 
 /**

@@ -7,11 +7,11 @@
  Instead, we are going to rely on the timer view to handle all the drawing.
 **/
 - (id)initWithContentRect:(NSRect)contentRect
-				styleMask:(unsigned int)aStyle
+				styleMask:(NSWindowStyleMask)aStyle
 				  backing:(NSBackingStoreType)bufferingType
 					defer:(BOOL)flag
 {
-	if(self = [super initWithContentRect:contentRect styleMask:NSBorderlessWindowMask backing:bufferingType defer:flag])
+	if(self = [super initWithContentRect:contentRect styleMask:NSWindowStyleMaskBorderless backing:bufferingType defer:flag])
 	{
 		// Use this level to make it above all other applications
         //[self setLevel: NSStatusWindowLevel];

@@ -17,7 +17,7 @@
 	
 	// For storing lap/split info
 	BOOL isLapMode;
-	int lapSplitIndex;
+	NSInteger lapSplitIndex;
 	NSMutableArray *laps;
 	NSMutableArray *splits;
 	NSDateFormatter *timeFormatter;

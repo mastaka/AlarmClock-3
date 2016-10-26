@@ -44,6 +44,9 @@
 		// We call them specifically, and in order, here for clarity.
 		// Also, classes like AlarmTasks must be started immediately, so we do that.
 		
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wexplicit-initialize-call"
+		
 		// Initialize Prefs
 		// This registers the default options in the user defaults system
 		[Prefs initialize];
@@ -59,6 +62,9 @@
 		// Initialize Alarm Tasks
 		// This starts the timers that automatically check for alarms every minute on the minute
 		[AlarmTasks initialize];
+        
+#pragma clang diagnostic pop
+
 	}
 	return self;
 }
@@ -96,7 +102,12 @@
 		NSString *title = NSLocalizedString(@"Welcome to Alarm Clock", @"Dialog Title");
 		NSString *message = NSLocalizedString(@"This application runs in the system menu bar, in the upper right-hand corner.  You may control your alarms, change preferences, and quit the application from this icon.  Enjoy!\n\nPS - To wake the computer from sleep, you must first authenticate in the app's preferences.", @"Dialog Message");
 		NSString *okButton = NSLocalizedString(@"OK", @"Dialog Button");
-        NSRunAlertPanel(title, message, okButton, nil, nil);
+		NSAlert *alert = [[NSAlert alloc] init];
+		[alert setMessageText:title];
+		[alert setInformativeText:message];
+		[alert addButtonWithTitle:okButton];
+		[alert runModal];
+		[alert release];
 		
 		// And set isFirstRun to false
 		[Prefs setIsFirstRun:NO];
@@ -135,7 +146,7 @@
 	}
 	
 	// Get the number of alarms
-	total = [AlarmScheduler numberOfAlarms];
+	total = (int) [AlarmScheduler numberOfAlarms];
 	
 	// Add the seperator if necessary
 	if(total > 0)

@@ -52,7 +52,7 @@ static NSTimer *timer;
 static NSTimer *dayTimer;
 
 // The time to schedule the computer to wake from sleep
-static NSCalendarDate *wakeDate;
+static NSDate *wakeDate;
 
 // INTIALIZATION, DEINITIALIZATION
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -183,20 +183,20 @@ void callback(void * x, io_service_t y, natural_t messageType, void * messageArg
 	
 	// Check the attributes of the helper tool
 	NSFileManager *fm = [NSFileManager defaultManager];
-	NSDictionary *attr = [fm fileAttributesAtPath:path traverseLink:NO];
+	NSDictionary *attr = [fm attributesOfItemAtPath:path error:nil];
 	
 	BOOL needsRepair = NO;
 	NSNumber *permissions;
 	NSString *owner;
 	
-	if(owner = [attr objectForKey:NSFileOwnerAccountName])
+	if((owner = [attr objectForKey:NSFileOwnerAccountName]))
 	{
 		if(![owner isEqualToString:@"root"])
 		{
 			needsRepair = YES;
 		}
 	}
-	if(permissions = [attr objectForKey:NSFilePosixPermissions])
+	if((permissions = [attr objectForKey:NSFilePosixPermissions]))
 	{
 		if([permissions intValue] != 2541) //-rwsr-xr-x
 		{
@@ -228,7 +228,13 @@ void callback(void * x, io_service_t y, natural_t messageType, void * messageArg
 		NSString *title = NSLocalizedString(@"Security Warning", @"Dialog Title");
 		NSString *message = NSLocalizedString(@"Internal components of the program have been tampered with.\nPlease reinstall the application.", @"Dialog Message");
 		NSString *okButton = NSLocalizedString(@"OK", @"Dialog Button");
-        NSRunCriticalAlertPanel(title, message, okButton, nil, nil);
+		NSAlert *alert = [[NSAlert alloc] init];
+		[alert setAlertStyle:NSAlertStyleCritical];
+		[alert setMessageText:title];
+		[alert setInformativeText:message];
+		[alert addButtonWithTitle:okButton];
+		[alert runModal];
+		[alert release];
 		
 		return NO;
 	}
@@ -311,7 +317,7 @@ void callback(void * x, io_service_t y, natural_t messageType, void * messageArg
 		[NSThread sleepUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.05]];
 	} while([md5 isRunning]);
 	
-	NSString *output = [[NSString alloc] initWithData:[readHandle readDataToEndOfFile] encoding:nil];
+	NSString *output = [[NSString alloc] initWithData:[readHandle readDataToEndOfFile] encoding:NSUTF8StringEncoding];
 	// NSLog(@"md5Check: %@", output);
 	
 	[output autorelease];
@@ -333,10 +339,10 @@ void callback(void * x, io_service_t y, natural_t messageType, void * messageArg
 	//
 	// They're different because the helper is stripped when it's copied into the alarm clock resources
 	
-	NSString *deployment1 = [NSString stringWithUTF8String:"316826cbb9cdfb6b2eaba043e6f1ba6c\n"];
-	NSString *deployment2 = [NSString stringWithUTF8String:"92f0b318b507f377bc559458c075935a\n"];
+	NSString *deployment1 = [NSString stringWithUTF8String:"a5bfc2710627a8507d27aad3b6609951\n"];
+	NSString *deployment2 = [NSString stringWithUTF8String:"453523367c729b509cb308be188612be\n"];
 	
-	NSString *development = [NSString stringWithUTF8String:"b48e7cc52e3d4d280533cc848801e2d4\n"];
+	NSString *development = [NSString stringWithUTF8String:"f07b4e0cd9b3b2f7d481a098d9710a7d\n"];
 	
 	// Deployment build
 	if([output hasSuffix:deployment1] || [output hasSuffix:deployment2])
@@ -368,14 +374,14 @@ void callback(void * x, io_service_t y, natural_t messageType, void * messageArg
 	
 	// What if an open alarm is currently snoozing, or a timer is active, etc...
 	// So we also get the earliest date an open window may need to wake up
-	NSCalendarDate *nextWindowDate = [WindowManager systemWillSleep];
+	NSDate *nextWindowDate = [WindowManager systemWillSleep];
 	
 	if(nextWindowDate != nil)
 	{
 		if(wakeDate == nil)
 			wakeDate = nextWindowDate;
 		else
-			wakeDate = (NSCalendarDate*)[wakeDate earlierDate:nextWindowDate];
+			wakeDate = (NSDate*)[wakeDate earlierDate:nextWindowDate];
 	}
 	
 	// Don't forget to retain the wakeDate - we need to reference it after we wake from sleep
@@ -474,12 +480,7 @@ void callback(void * x, io_service_t y, natural_t messageType, void * messageArg
 			double secondsTilWake = 60.0 - secondsTilAlarm;
 			
 			[wakeDate autorelease];
-			wakeDate = [[wakeDate dateByAddingYears:0
-											 months:0
-											   days:0
-											  hours:0
-											minutes:0
-											seconds:secondsTilWake] retain];
+			wakeDate = [[wakeDate dateByAddingTimeInterval:secondsTilWake] retain];
 			
 			NSString *targetStr = [NSString stringWithFormat:@"%f", [wakeDate timeIntervalSinceReferenceDate]];
 			[args addObject:targetStr];
@@ -532,7 +533,7 @@ void callback(void * x, io_service_t y, natural_t messageType, void * messageArg
 {
 	// Start the initial timer
 	// It shouldn't go off til the seconds (and milliseconds) are zero
-	double waitTime1 = 60.0 - [[NSCalendarDate calendarDate] intervalOfMinute];
+	double waitTime1 = 60.0 - [[NSDate date] intervalOfMinute];
 	timer = [[NSTimer scheduledTimerWithTimeInterval:waitTime1
 											  target:self
 											selector:@selector(initialCheckForAlarm:)
@@ -541,7 +542,7 @@ void callback(void * x, io_service_t y, natural_t messageType, void * messageArg
 	
 	// Start a timer to update menu items when the current day changes
 	// This is needed so that items with "Tomorrow" get properly updated to "Today"
-	double waitTime2 = 86400.0 - [[NSCalendarDate calendarDate] intervalOfDay];
+	double waitTime2 = 86400.0 - [[NSDate date] intervalOfDay];
 	dayTimer = [[NSTimer scheduledTimerWithTimeInterval:waitTime2
 												 target:self
 											   selector:@selector(updateMenuItemsAtDayChange:)
@@ -575,10 +576,10 @@ void callback(void * x, io_service_t y, natural_t messageType, void * messageArg
 + (void)checkForAlarm:(NSTimer *)aTimer
 {
 	// Immediately grab the time so we know exactly when this timer fired
-	NSCalendarDate *now = [NSCalendarDate calendarDate];
+	NSDate *now = [NSDate date];
 	
 	// Timer Accuracy Check
-	if([timer isValid] && ([now secondOfMinute] > 0))
+	if([timer isValid] && ([[NSCalendar currentCalendar] component:NSCalendarUnitSecond fromDate:now] > 0))
 	{
 		// The timer is either firing early (second is probably 59) or it's firing late (second is probably 1)
 		// The first is possible due to an OS bug (or timer API bug)
@@ -615,7 +616,7 @@ void callback(void * x, io_service_t y, natural_t messageType, void * messageArg
 {
 	[dayTimer autorelease];
 	
-	double waitTime = 86400.0 - [[NSCalendarDate calendarDate] intervalOfDay];
+	double waitTime = 86400.0 - [[NSDate date] intervalOfDay];
 	dayTimer = [[NSTimer scheduledTimerWithTimeInterval:waitTime
 												 target:self
 											   selector:@selector(updateMenuItemsAtDayChange:)

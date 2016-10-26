@@ -20,6 +20,9 @@ static NSMutableArray *alarms;
 // Storage of last alarm to sound
 static Alarm *lastAlarm;
 
+// Storage of last time zone
+static NSTimeZone *timeZone;
+
 // INITIALIZATION, DEINITIALIZATION
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -69,11 +72,14 @@ static Alarm *lastAlarm;
 		
 		// Save changes to defaults
 		[self savePrefs];
+        
+        // Save current time zone (needed for zone updating)
+        timeZone = [NSTimeZone systemTimeZone];
 		
 		// Add listener for time zone change notifications
 		[[NSDistributedNotificationCenter defaultCenter] addObserver:self 
 															selector:@selector(timeZoneDidChange:) 
-																name:@"NSSystemTimeZoneDidChangeDistributedNotification" 
+																name:@"NSSystemTimeZoneDidChangeNotification"
 															  object:nil];
 		
 		// Note: The alarms individually update themselves during init if the time zone has changed
@@ -260,6 +266,10 @@ static Alarm *lastAlarm;
 	
 	// Since the time has changed for all the alarms, we should go ahead and update the user defaults system
 	[self savePrefs];
+    
+    // Store new time zone
+    timeZone = [NSTimeZone systemTimeZone];
+
 	
 	// We might as well go ahead and update the menu too, just in case anything went wrong
 	// Post notification for changed alarm
@@ -270,7 +280,7 @@ static Alarm *lastAlarm;
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /* Returns the number of alarms that have been scheduled */
-+ (int)numberOfAlarms
++ (NSUInteger)numberOfAlarms
 {
 	return [alarms count];
 }
@@ -291,7 +301,7 @@ static Alarm *lastAlarm;
  The returned date is a clone (autoreleased copy).
  If no alarm is scheduled, nil is returned
 **/
-+ (NSCalendarDate *)nextAlarmDate
++ (NSDate *)nextAlarmDate
 {
 	int i;
 	for(i = 0; i < [alarms count]; i++)
@@ -318,7 +328,7 @@ static Alarm *lastAlarm;
  Note, that if this method returns a non-negative value (either zero or positive), it should continually be queried,
  as there may be multiple alarms set for the same time.
 **/
-+ (int)alarmStatus:(NSCalendarDate *)now
++ (int)alarmStatus:(NSDate *)now
 {
 	if([alarms count] > 0)
 	{
@@ -379,7 +389,7 @@ static Alarm *lastAlarm;
 	// Put it in the right place
 	int i = 0;
 	BOOL done = false;
-	NSCalendarDate *newTime = [newAlarm time];
+	NSDate *newTime = [newAlarm time];
 	
 	while(i<[alarms count] && !done)
 	{

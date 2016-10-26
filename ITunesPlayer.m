@@ -22,79 +22,6 @@
 
 @implementation ITunesPlayer
 
-// C STYLE METHODS
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-/**
- * This method was taken (and modified) from Apple's Documentation here:
- * http://developer.apple.com/qa/qa2006/qa1476.html
- *
- * This method checks DRM properties of a given Movie.
- * Note that you don't pass a QTMovie, but instead a standard movie, which is obtained by [QTMovie quickTimeMovie].
- * You also pass in (by reference) 2 BOOL variables, which will be properly set for you within this method.
- * 
- * The return variable is of type OSStatus (which is really just a signed 32 bit integer).
- * You can verify that this is equal to noErr by if(OSStatusResult == noErr).
-**/
-OSStatus CheckDRM(Movie inMovie, BOOL *outIsProtected, BOOL *outIsAuthorized)
-{
-	OSStatus err = paramErr;
-	
-    // Get first sound track
-	// Type Track is a pointer to Type TrackRecord, which is a struct.
-    Track aTrack = GetMovieIndTrackType(inMovie, 1, SoundMediaType, movieTrackMediaType | movieTrackEnabledOnly);
-    if(aTrack)
-	{
-		// Get the track media
-		// Type Media is a pointer to Type MediaRecord, which is a struct.
-        Media aMedia = GetTrackMedia(aTrack);
-        if(aMedia)
-		{
-			// Get the media handler we can query
-			MediaHandler mh = GetMediaHandler(aMedia);
-			if(mh)
-			{
-				// Is this media protected?
-				err = QTGetComponentProperty(mh,
-											 kQTPropertyClass_DRM,
-											 kQTDRMPropertyID_IsProtected,
-											 sizeof(*outIsProtected),
-											 outIsProtected,
-											 NULL);
-				
-				if(kQTPropertyNotSupportedErr == err)
-				{
-					// The media file isn't protected
-					outIsProtected = NO;
-					outIsAuthorized = NO;
-					return noErr;
-				}
-				
-                if((noErr == err) && outIsProtected)
-				{
-					// Turn off user interaction so no automatic dialog will pop up if the machine is not authorized.
-					BOOL interactWithUser = NO;
-                    QTSetComponentProperty(mh,
-										   kQTPropertyClass_DRM,
-										   kQTDRMPropertyID_InteractWithUser,
-										   sizeof(interactWithUser),
-										   &interactWithUser);
-					
-					// Is this media authorized on this machine?
-                    err = QTGetComponentProperty(mh,
-												 kQTPropertyClass_DRM, 
-												 kQTDRMPropertyID_IsAuthorized,
-                                                 sizeof(*outIsAuthorized),
-												 outIsAuthorized,
-												 NULL);
-                }
-            }
-        }
-    }
-	
-    return err;
-}
-
 // INITIALIZATION
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -108,7 +35,7 @@ OSStatus CheckDRM(Movie inMovie, BOOL *outIsProtected, BOOL *outIsAuthorized)
 	if(!initialized)
 	{
 		// Seed the random number generator with the time
-		srandom(time(NULL));
+		srandom((unsigned int) time(NULL));
 		
 		initialized = YES;
 	}
@@ -133,13 +60,10 @@ OSStatus CheckDRM(Movie inMovie, BOOL *outIsProtected, BOOL *outIsAuthorized)
 		// Register for notifications
 		[[NSNotificationCenter defaultCenter] addObserver:self
 												 selector:@selector(movieFinished:)
-													 name:QTMovieDidEndNotification
-												   object:nil];
+													 name:AVPlayerItemDidPlayToEndTimeNotification
+												   object:movie.currentItem];
 		
-		[[NSNotificationCenter defaultCenter] addObserver:self
-												 selector:@selector(movieLoadStateDidChange:)
-													 name:QTMovieLoadStateDidChangeNotification
-												   object:nil];
+//		[movie addObserver:self forKeyPath:@"status" options:0 context:nil];
 	}
 	return self;
 }
@@ -153,6 +77,7 @@ OSStatus CheckDRM(Movie inMovie, BOOL *outIsProtected, BOOL *outIsAuthorized)
 	
 	// Remove notification observers
 	[[NSNotificationCenter defaultCenter] removeObserver:self];
+//    [movie removeObserver:self forKeyPath:@"status"];
 	
 	// Remove any objects we created
 	[iTunesData release];
@@ -181,7 +106,7 @@ OSStatus CheckDRM(Movie inMovie, BOOL *outIsProtected, BOOL *outIsAuthorized)
 	// Stop and release the current movie if needed
 	if(movie != nil)
 	{
-		[movie stop];
+		[movie pause];
 		[movie release];
 		movie = nil;
 	}
@@ -192,9 +117,13 @@ OSStatus CheckDRM(Movie inMovie, BOOL *outIsProtected, BOOL *outIsAuthorized)
 	// Set the movie
 	NSURL *url = [NSURL fileURLWithPath:filepath];
 	
-	movie = [[QTMovie alloc] initWithURL:url error:nil];
+	movie = [[AVPlayer alloc] initWithURL:url];
 	[movie setVolume:volumePercentage];
-	[movie setAttribute:[NSNumber numberWithBool:YES] forKey:QTMovieLoopsAttribute];
+	movie.actionAtItemEnd = AVPlayerActionAtItemEndNone;
+	[[NSNotificationCenter defaultCenter] addObserver:self
+											 selector:@selector(movieRestart:)
+												 name:AVPlayerItemDidPlayToEndTimeNotification
+											   object:[movie currentItem]];
 	
 	// Create a dictionary with "track" information
 	NSString *defaultStr = NSLocalizedStringFromTable(@"Default Alarm", @"AlarmEditor", @"Song label when no track/playlist is selected.");
@@ -222,7 +151,7 @@ OSStatus CheckDRM(Movie inMovie, BOOL *outIsProtected, BOOL *outIsAuthorized)
 	// Stop and release the current movie if needed
 	if(movie != nil)
 	{
-		[movie stop];
+		[movie pause];
 		[movie release];
 		movie = nil;
 	}
@@ -240,15 +169,10 @@ OSStatus CheckDRM(Movie inMovie, BOOL *outIsProtected, BOOL *outIsAuthorized)
 			// Assume the location points to a standard audio file
 			NSURL *url = [NSURL URLWithString:[track objectForKey:@"Location"]];
 			
-			movie = [[QTMovie alloc] initWithURL:url error:nil];
+			movie = [[AVPlayer alloc] initWithURL:url];
 			
 			// Now we check for any DRM, if necessary
-			BOOL isProtected = NO;
-			BOOL isAuthorized = NO;
-			CheckDRM([movie quickTimeMovie], &isProtected, &isAuthorized);
-				
-			if(isProtected && !isAuthorized)
-			{
+			if(movie.currentItem.asset.hasProtectedContent) {
 				NSLog(@"Not authorized to play track: %@", [track objectForKey:TRACK_NAME]);
 				[movie release];
 				movie = nil;
@@ -270,7 +194,7 @@ OSStatus CheckDRM(Movie inMovie, BOOL *outIsProtected, BOOL *outIsAuthorized)
 	// Stop and release the current movie if needed
 	if(movie != nil)
 	{
-		[movie stop];
+		[movie pause];
 		[movie release];
 		movie = nil;
 	}
@@ -283,7 +207,7 @@ OSStatus CheckDRM(Movie inMovie, BOOL *outIsProtected, BOOL *outIsAuthorized)
 	
 	// Since we're only using a single track, make sure it loops
 	[movie setVolume:volumePercentage];
-	[movie setAttribute:[NSNumber numberWithBool:YES] forKey:QTMovieLoopsAttribute];
+//	[movie setAttribute:[NSNumber numberWithBool:YES] forKey:QTMovieLoopsAttribute];
 }
 
 /**
@@ -300,7 +224,7 @@ OSStatus CheckDRM(Movie inMovie, BOOL *outIsProtected, BOOL *outIsAuthorized)
 	// Stop and release the current movie if needed
 	if(movie != nil)
 	{
-		[movie stop];
+		[movie pause];
 		[movie release];
 		movie = nil;
 	}
@@ -418,7 +342,7 @@ OSStatus CheckDRM(Movie inMovie, BOOL *outIsProtected, BOOL *outIsAuthorized)
 {
 	if(movie != nil)
 	{
-		[movie stop];
+		[movie pause];
 	}
 }
 
@@ -440,7 +364,7 @@ OSStatus CheckDRM(Movie inMovie, BOOL *outIsProtected, BOOL *outIsAuthorized)
 	if(type != TYPE_PLAYLIST)
 	{
 		// In this case all we can do is start the song over from the beginning
-		[movie gotoBeginning];
+		[movie seekToTime:kCMTimeZero];
 		return;
 	}
 	
@@ -506,7 +430,7 @@ OSStatus CheckDRM(Movie inMovie, BOOL *outIsProtected, BOOL *outIsAuthorized)
 	if(type != TYPE_PLAYLIST)
 	{
 		// In this case all we can do is start the song over from the beginning
-		[movie gotoBeginning];
+		[movie seekToTime:kCMTimeZero];
 		return;
 	}
 	
@@ -515,14 +439,14 @@ OSStatus CheckDRM(Movie inMovie, BOOL *outIsProtected, BOOL *outIsAuthorized)
 	// Only if you hit previous in the first 3 seconds of the song, do you actually go to the previous song
 	
 	// Get the current time of the movie that's playing
-	QTTime currentTime = [movie currentTime];
+	CMTime currentTime = [movie currentTime];
 	
 	// QTTime is a structure which contains the timeValue (long long), and timeScale (long)
 	// We can determine the number of seconds into the song by division
-	int seconds = currentTime.timeValue / currentTime.timeScale;
+	NSInteger seconds = currentTime.value / currentTime.timescale;
 	if(seconds >= 3)
 	{
-		[movie gotoBeginning];
+		[movie seekToTime:kCMTimeZero];
 		return;
 	}
 	
@@ -626,7 +550,7 @@ OSStatus CheckDRM(Movie inMovie, BOOL *outIsProtected, BOOL *outIsAuthorized)
 {
 	// This method is called for every movie in the application finishing
 	// Check to make sure the movie is the one we're looking for
-	if((type == TYPE_PLAYLIST) && (movie == [notification object]))
+	if((type == TYPE_PLAYLIST) && (movie.currentItem == [notification object]))
 	{
 		// Goto the next track in the playlist
 		[self nextTrack];
@@ -637,55 +561,47 @@ OSStatus CheckDRM(Movie inMovie, BOOL *outIsProtected, BOOL *outIsAuthorized)
 }
 
 /**
+ * Called when a song has finished playing.
+ *
+ * This method restarts playback.
+ **/
+- (void)movieRestart:(NSNotification *)notification
+{
+    // This method is called for every movie in the application finishing
+    // Check to make sure the movie is the one we're looking for
+    if(movie.currentItem == [notification object])
+    {
+        AVPlayerItem *p = [notification object];
+        [p seekToTime:kCMTimeZero];
+    }
+}
+
+/**
  * This method is called when the load state of a movie changes.
  * It will be called multiple times as the movie continues to load.
  * 
  * We use this method to immediately start playing the movie as soon as it's ready.
 **/
-- (void)movieLoadStateDidChange:(NSNotification *)notification
-{
-	NSLog(@"movieLoadStateDidChange:");
-	
-	// First make sure that this notification is for our movie.
-	// There may be multiple ITunesPlayer instances. Such would be the case if browsing multiple libraries.
-	if([notification object] == movie)
-	{
-		// Possible load states:
-		// kMovieLoadStateLoading — QuickTime still instantiating the movie
-		// kMovieLoadStatePlayable — Movie fully formed and can be played; media data still downloading
-		// kMovieLoadStatePlaythroughOK— Media still downloading; all data is expected to arrive before it's needed
-		// kMovieLoadStateComplete — all media data is available
-		// kMovieLoadStateError — movie loading failed; a movie may have been created, but it is not playable.
-		
-		long loadState = [[movie attributeForKey:QTMovieLoadStateAttribute] longValue];
-		
-		if(loadState == kMovieLoadStateLoading) {
-			NSLog(@"ITunesPlayer: loadState: kMovieLoadStateLoading");
-		}
-		else if(loadState == kMovieLoadStatePlayable) {
-			NSLog(@"ITunesPlayer: loadState: kMovieLoadStatePlayable");
-		}
-		else if(loadState == kMovieLoadStatePlaythroughOK) {
-			NSLog(@"ITunesPlayer: loadState: kMovieLoadStatePlaythroughOK");
-		}
-		else if(loadState == kMovieLoadStateComplete) {
-			NSLog(@"ITunesPlayer: loadState: kMovieLoadStateComplete");
-		}
-		else if(loadState == kMovieLoadStateError) {
-			NSLog(@"ITunesPlayer: loadState: kMovieLoadStateError");
-		}
-		else
-			NSLog(@"ITunesPlayer: loadState: Unknown load state!!!");
-		
-	//	if(shouldPlay && ![self isPlaying])
-	//	{
-	//		if([[movie attributeForKey:QTMovieLoadStateAttribute] longValue] >= kMovieLoadStatePlaythroughOK)
-	//		{
-	//			[self play];
-	//		}
-	//	}
-	}
-}
+//
+//
+//- (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object
+//                        change:(NSDictionary *)change context:(void *)context {
+//    if (object == movie && [keyPath isEqualToString:@"status"]) {
+//        if (movie.status == AVPlayerStatusReadyToPlay) {
+//            NSLog(@"ITunesPlayer: state: AVPlayerStatusReadyToPlay");
+////            if(shouldPlay && ![self isPlaying]) {
+////                [self play];
+////            }
+//        } else if (movie.status == AVPlayerStatusFailed) {
+//            NSLog(@"ITunesPlayer: state: AVPlayerStatusFailed");
+//        } else if (movie.status == AVPlayerStatusUnknown) {
+//            NSLog(@"ITunesPlayer: state: AVPlayerStatusUnknown");
+//        } else {
+//            NSLog(@"ITunesPlayer: state: unknown");
+//        }
+//
+//    }
+//}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma mark Helper Methods:

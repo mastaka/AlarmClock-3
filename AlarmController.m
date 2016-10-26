@@ -6,6 +6,7 @@
 #import "ITunesPlayer.h"
 #import "MTCoreAudioDevice.h"
 #import "AppleRemote.h"
+#import "RoundedView.h"
 
 
 // Declare private methods
@@ -586,12 +587,12 @@
 {
 	if(alarmStatus == STATUS_SNOOZING)
 	{
-		NSCalendarDate *newStartTime;
+		NSDate *newStartTime;
 		
-		if([[NSApp currentEvent] modifierFlags] & NSAlternateKeyMask)
-			newStartTime = [startTime dateByAddingYears:0 months:0 days:0 hours:0 minutes:5 seconds:0];
+		if([[NSApp currentEvent] modifierFlags] & NSEventModifierFlagOption)
+			newStartTime = [startTime dateByAddingTimeInterval:5*60];
 		else
-			newStartTime = [startTime dateByAddingYears:0 months:0 days:0 hours:0 minutes:1 seconds:0];
+			newStartTime = [startTime dateByAddingTimeInterval:1*60];
 	
 		[startTime release];
 		startTime = [newStartTime retain];
@@ -612,12 +613,12 @@
 {
 	if(alarmStatus == STATUS_SNOOZING)
 	{
-		NSCalendarDate *newStartTime;
+		NSDate *newStartTime;
 		
-		if([[NSApp currentEvent] modifierFlags] & NSAlternateKeyMask)
-			newStartTime = [startTime dateByAddingYears:0 months:0 days:0 hours:0 minutes:-5 seconds:0];
+		if([[NSApp currentEvent] modifierFlags] & NSEventModifierFlagOption)
+			newStartTime = [startTime dateByAddingTimeInterval:-5*60];
 		else
-			newStartTime = [startTime dateByAddingYears:0 months:0 days:0 hours:0 minutes:-1 seconds:0];
+			newStartTime = [startTime dateByAddingTimeInterval:-1*60];
 	
 		if([newStartTime timeIntervalSinceNow] > 0)
 		{
@@ -663,7 +664,7 @@
  Called prior to the system going to sleep.
  We need to return the time at which this alarm will stop snoozing.
 **/
-- (NSCalendarDate *)systemWillSleep
+- (NSDate *)systemWillSleep
 {
 	// Call snooze method
 	// If the alarm is active, this will obviously snooze it
@@ -714,9 +715,9 @@
 		[self playerNextTrack];
 		
 		// Reset the snooze time
-		NSCalendarDate *now = [NSCalendarDate calendarDate];
+		NSDate *now = [NSDate date];
 		[startTime release];
-		startTime = [[now dateByAddingYears:0 months:0 days:0 hours:0 minutes:0 seconds:snoozeDuration] retain];
+		startTime = [[now dateByAddingTimeInterval:snoozeDuration] retain];
 		
 		NSLog(@"Snoozing til: %@", startTime);
 		
@@ -767,7 +768,7 @@
 - (void)updateAndCheck:(NSTimer *)aTimer
 {
 	// Get the current time
-	NSCalendarDate *now = [NSCalendarDate calendarDate];
+	NSDate *now = [NSDate date];
 	
 	// Update the timeStr
 	[timeStr release];

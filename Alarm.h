@@ -15,7 +15,7 @@
 	int playlistID;
 	NSString *persistentTrackID;
 	NSString *persistentPlaylistID;
-	NSCalendarDate *time;
+	NSDate *time;
 }
 
 // Global Class Methods
@@ -61,7 +61,7 @@
 - (NSString *)persistentPlaylistID;
 - (void)setPlaylistID:(int)playlistID withPersistentPlaylistID:(NSString *)persistentPlaylistID;
 
-- (NSCalendarDate *)time;
-- (void)setTime:(NSCalendarDate *)time;
+- (NSDate *)time;
+- (void)setTime:(NSDate *)time;
 
 @end

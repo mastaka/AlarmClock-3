@@ -7,12 +7,12 @@
  Instead, we are going to rely on the timer view to handle all the drawing.
 **/
 - (id)initWithContentRect:(NSRect)contentRect 
-                styleMask:(unsigned int)aStyle 
+                styleMask:(NSWindowStyleMask)aStyle
                   backing:(NSBackingStoreType)bufferingType 
                     defer:(BOOL)flag
 {
     if (self = [super initWithContentRect:contentRect 
-								styleMask:NSBorderlessWindowMask
+								styleMask:NSWindowStyleMaskBorderless
 								  backing:NSBackingStoreBuffered
 									defer:NO])
 	{

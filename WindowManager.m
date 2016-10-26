@@ -366,8 +366,8 @@ static NSLock *lock;
     while((sourceRef = [enumerator nextObject]) && !mBatteryPower)
     {
         NSDictionary *sourceData = (NSDictionary *)IOPSGetPowerSourceDescription(powerSourcesInfo, sourceRef);
-		NSString *powerSourceStateKey = [NSString stringWithCString:kIOPSPowerSourceStateKey];
-		NSString *batteryPowerValue = [NSString stringWithCString:kIOPSBatteryPowerValue];
+		NSString *powerSourceStateKey = [NSString stringWithUTF8String:kIOPSPowerSourceStateKey];
+		NSString *batteryPowerValue = [NSString stringWithUTF8String:kIOPSBatteryPowerValue];
 		
         if([[sourceData objectForKey:powerSourceStateKey] isEqualToString:batteryPowerValue])
         {
@@ -432,10 +432,10 @@ static NSLock *lock;
  The earliest date is returned.
  If no windows require a system wake, nil is returned.
 **/
-+ (NSCalendarDate *)systemWillSleep
++ (NSDate *)systemWillSleep
 {
 	int i;
-	NSCalendarDate *wakeDate = nil;
+	NSDate *wakeDate = nil;
 	
 	// Loop through all Alarms
 	// If an alarm is snoozing, the system needs to wake up when the snooze duration is over
@@ -443,7 +443,7 @@ static NSLock *lock;
 	for(i = 0; i < [alarmWindows count]; i++)
 	{
 		// Get the alarm's desired startTime
-		NSCalendarDate *temp = [[alarmWindows objectAtIndex:i] systemWillSleep];
+		NSDate *temp = [[alarmWindows objectAtIndex:i] systemWillSleep];
 		
 		if(temp != nil)
 		{
@@ -452,7 +452,7 @@ static NSLock *lock;
 			if(wakeDate == nil)
 				wakeDate = temp;
 			else
-				wakeDate = (NSCalendarDate*)[wakeDate earlierDate:temp];
+				wakeDate = (NSDate*)[wakeDate earlierDate:temp];
 		}
 	}
 	
@@ -462,7 +462,7 @@ static NSLock *lock;
 	for(i = 0; i < [timerWindows count]; i++)
 	{
 		// Get the time at which the timer should go off
-		NSCalendarDate *temp = [[timerWindows objectAtIndex:i] systemWillSleep];
+		NSDate *temp = [[timerWindows objectAtIndex:i] systemWillSleep];
 		
 		// If a timer isn't active, temp will be nil
 		if(temp != nil)
@@ -472,7 +472,7 @@ static NSLock *lock;
 			if(wakeDate == nil)
 				wakeDate = temp;
 			else
-				wakeDate = (NSCalendarDate*)[wakeDate earlierDate:temp];
+				wakeDate = (NSDate*)[wakeDate earlierDate:temp];
 		}
 	}
 	
@@ -482,7 +482,7 @@ static NSLock *lock;
 	for(i = 0; i < [stopwatchWindows count]; i++)
 	{
 		// Get the time at which the timer should go off
-		NSCalendarDate *temp = [[stopwatchWindows objectAtIndex:i] systemWillSleep];
+		NSDate *temp = [[stopwatchWindows objectAtIndex:i] systemWillSleep];
 		
 		// If a timer isn't active, temp will be nil
 		if(temp != nil)
@@ -492,7 +492,7 @@ static NSLock *lock;
 			if(wakeDate == nil)
 				wakeDate = temp;
 			else
-				wakeDate = (NSCalendarDate*)[wakeDate earlierDate:temp];
+				wakeDate = (NSDate*)[wakeDate earlierDate:temp];
 		}
 	}
 	

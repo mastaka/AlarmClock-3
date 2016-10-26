@@ -16,7 +16,7 @@
 	{
 		// Setup alignment of strings
 		NSMutableParagraphStyle *paragraphStyle = [[[NSMutableParagraphStyle alloc] init] autorelease];
-		[paragraphStyle setAlignment:NSCenterTextAlignment];
+		[paragraphStyle setAlignment:NSTextAlignmentCenter];
 		[paragraphStyle setLineBreakMode:NSLineBreakByTruncatingTail];
 		
 		// Setup shadow for strings
@@ -635,7 +635,7 @@
 		// Store mouse location
 		initialWindowFrame = [[self window] frame];
 		initialLocationInWindow = [event locationInWindow];
-		initialLocationInScreen = [[self window] convertBaseToScreen:initialLocationInWindow];
+		initialLocationInScreen = [[self window] convertRectToScreen:NSMakeRect(initialLocationInWindow.x, initialLocationInWindow.y, 0, 0)].origin;
 	}
 	else
 	{
@@ -645,7 +645,7 @@
 		// Store initial frame and location
 		initialWindowFrame = [[self window] frame];
 		initialLocationInWindow = [event locationInWindow];
-		initialLocationInScreen = [[self window] convertBaseToScreen:initialLocationInWindow];
+		initialLocationInScreen = [[self window] convertRectToScreen:NSMakeRect(initialLocationInWindow.x, initialLocationInWindow.y, 0, 0)].origin;
 	}
 }
 
@@ -665,14 +665,16 @@
 		NSRect  screenFrame = [[NSScreen mainScreen] frame];
 		NSRect  windowFrame = [[self window] frame];
 		
-		currentLocation = [[self window] convertBaseToScreen:[event locationInWindow]];
+		NSPoint windowPoint = [event locationInWindow];
+		currentLocation = [[self window] convertRectToScreen:NSMakeRect(windowPoint.x, windowPoint.y, 0, 0)].origin;
 		newOrigin.x = currentLocation.x - initialLocationInWindow.x;
 		newOrigin.y = currentLocation.y - initialLocationInWindow.y;
 		
-		if((newOrigin.y + windowFrame.size.height) > (NSMaxY(screenFrame) - [NSMenuView menuBarHeight]))
+		CGFloat menuBarHeight = [[NSStatusBar systemStatusBar] thickness];
+		if((newOrigin.y + windowFrame.size.height) > (NSMaxY(screenFrame) - menuBarHeight))
 		{
 			// Prevent dragging into the menu bar area
-			newOrigin.y = NSMaxY(screenFrame) - windowFrame.size.height - [NSMenuView menuBarHeight];
+			newOrigin.y = NSMaxY(screenFrame) - windowFrame.size.height - menuBarHeight;
 		}
 		
 		[[self window] setFrameOrigin:newOrigin];
@@ -682,7 +684,8 @@
 	
 	if(isPressedResize)
 	{
-		NSPoint currentScreenLocation = [[self window] convertBaseToScreen:[event locationInWindow]];
+		NSPoint windowPoint = [event locationInWindow];
+		NSPoint currentScreenLocation = [[self window] convertRectToScreen:NSMakeRect(windowPoint.x, windowPoint.y, 0, 0)].origin;
 	
 		float xDiff = currentScreenLocation.x - initialLocationInScreen.x;
 		float yDiff = initialLocationInScreen.y - currentScreenLocation.y;

@@ -179,46 +179,36 @@
 	if([[self window] isDocumentEdited])
 	{
 		// Repeating alarm type was selected, but no days were selected
-		NSBeginAlertSheet(NSLocalizedStringFromTable(@"Do you want to save changes to this alarm before closing?", @"AlarmEditor", @"Main prompt in sheet"),
-						  NSLocalizedStringFromTable(@"Save", @"AlarmEditor", @"Dialog Button"),
-						  NSLocalizedStringFromTable(@"Don't Save", @"AlarmEditor", @"Dialog Button"),
-						  NSLocalizedStringFromTable(@"Cancel", @"AlarmEditor", @"Dialog Button"),
-						  [self window],
-						  self,
-						  @selector(sheetDidEnd:returnCode:contextInfo:),
-						  @selector(sheetDidDismiss:returnCode:contextInfo:),
-						  NULL,
-						  NSLocalizedStringFromTable(@"If you don't save, your changes will be lost.", @"AlarmEditor", @"Sub prompt in sheet"));
-		
+		NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+		[alert setMessageText:NSLocalizedStringFromTable(@"Do you want to save changes to this alarm before closing?", @"AlarmEditor", @"Main prompt in sheet")];
+		[alert setInformativeText:NSLocalizedStringFromTable(@"If you don't save, your changes will be lost.", @"AlarmEditor", @"Sub prompt in sheet")];
+		[alert setAlertStyle:NSAlertStyleWarning];
+		[alert addButtonWithTitle:NSLocalizedStringFromTable(@"Save", @"AlarmEditor", @"Dialog Button")];
+		[alert addButtonWithTitle:NSLocalizedStringFromTable(@"Don't Save", @"AlarmEditor", @"Dialog Button")];
+		[alert addButtonWithTitle:NSLocalizedStringFromTable(@"Cancel", @"AlarmEditor", @"Dialog Button")];
+		[alert beginSheetModalForWindow:self.window completionHandler:^(NSModalResponse returnCode) {
+			if (returnCode == NSAlertFirstButtonReturn) {
+				// User clicked "Save"
+				// Programmatically click "OK" to start the save routine
+				[self ok:self];
+				
+			}
+			else if (returnCode == NSAlertSecondButtonReturn)
+			{
+				// User clicked "Don't Save"
+				// Don't wait for sheet to be dismissed, immediately close the window
+				[[self window] close];
+			}
+		}];
 		return NO;
 	}
 	
 	return YES;
 }
 
-- (void)sheetDidEnd:(NSWindow *)sheet returnCode:(int)returnCode contextInfo:(void  *)contextInfo
-{
-	if(returnCode == NSAlertAlternateReturn)
-	{
-		// User clicked "Don't Save"
-		// Don't wait for sheet to be dismissed, immediately close the window
-		[[self window] close];
-	}
-}
-
-- (void)sheetDidDismiss:(NSWindow *)sheet returnCode:(int)returnCode contextInfo:(void  *)contextInfo
-{
-	if(returnCode == NSAlertDefaultReturn)
-	{
-		// User clicked "Save"
-		// Programmatically click "OK" to start the save routine
-		[self ok:self];
-	}
-}
-
 /**
  Called immediately before the window closes.
-  
+ 
  This method's job is to release the WindowController (self)
  This is so that the nib file is not held in memory,
  which helps because the alarm clock is supposed to be a background program.
@@ -758,25 +748,28 @@
 	}
 	
 	// Update the date/time
-	NSCalendarDate *dmy, *hm, *newTime;
+	NSDate *dmy, *hm, *newTime;
+	NSCalendar *calendar = [NSCalendar currentCalendar];
 	
 	// Set the time from timeField
-	hm = [[timeField dateValue] dateWithCalendarFormat:nil timeZone:nil];
+	hm = [timeField dateValue];
 	
 	// Set the date from the dateField if one-time alarm
 	//  or from a time in the past (yesterday) if a repeating alarm (It will get updated to the proper time)
-	if(!isRepeating)
-		dmy = [[dateField dateValue] dateWithCalendarFormat:nil timeZone:nil];
-	else
-		dmy = [[NSCalendarDate calendarDate] dateByAddingYears:0 months:0 days:-1 hours:0 minutes:0 seconds:0];
+	dmy = [dateField dateValue];
+	if(isRepeating) {
+		NSDateComponents *components = [[NSDateComponents alloc] init];
+		[components setDay:-1];
+		dmy = [calendar dateByAddingComponents:components toDate:[NSDate date] options:0];
+		[components release];
+	}
 	
-	int year  = [dmy yearOfCommonEra];
-	int month = [dmy monthOfYear];
-	int day   = [dmy dayOfMonth];
-	int hour  = [hm hourOfDay];
-	int min   = [hm minuteOfHour];
+	NSDateComponents *components = [calendar components:(NSCalendarUnitDay | NSCalendarUnitMonth | NSCalendarUnitYear) fromDate:dmy];
+	components.hour  = [calendar component:NSCalendarUnitHour fromDate:hm];
+	components.minute = [calendar component:NSCalendarUnitMinute fromDate:hm];
+	components.second = 0;
 	
-	newTime = [NSCalendarDate dateWithYear:year month:month day:day hour:hour minute:min second:0 timeZone:nil];
+	newTime = [calendar dateFromComponents:components];
 	
 	// Set the alarm's time
 	[alarm setTime:newTime];
@@ -839,7 +832,8 @@
 	int i;
 	
 	// Setup months popup button
-	NSArray *months = [[NSUserDefaults standardUserDefaults] arrayForKey:NSMonthNameArray];
+	NSCalendar *calendar = [NSCalendar currentCalendar];
+	NSArray *months = [calendar standaloneMonthSymbols];
 	
 	[calMonths removeAllItems];
 	for(i=0; i<[months count]; i++)
@@ -848,28 +842,25 @@
 	}
 	
 	// Setup years popup button
-	NSCalendarDate *now = [NSCalendarDate calendarDate];
+	NSInteger year = [calendar component:NSCalendarUnitYear fromDate:[NSDate date]];
 	
 	[calYears removeAllItems];
 	for(i=0; i<4; i++)
 	{
-		int year = [now yearOfCommonEra] + i;
-		[calYears addItemWithTitle:[NSString stringWithFormat:@"%i",year]];
+		[calYears addItemWithTitle:[NSString stringWithFormat:@"%li", year + i]];
 	}
 	
 	// Get date from text field
-	NSCalendarDate *date = [[dateField dateValue] dateWithCalendarFormat:nil timeZone:nil];
+	NSDate *date = [dateField dateValue];
 	
 	// Select proper month, year, day
-	[calMonths selectItemAtIndex:[date monthOfYear]-1];
-	[calYears setTitle:[NSString stringWithFormat:@"%i", [date yearOfCommonEra]]];
+	[calMonths selectItemAtIndex:[calendar component:NSCalendarUnitMonth fromDate:date]-1];
+	[calYears setTitle:[NSString stringWithFormat:@"%li", (long)[calendar component:NSCalendarUnitYear fromDate:date]]];
 	[calView setCalendarDate:date withValidDay:YES];
 	
-	[NSApp beginSheet:calPanel
-	   modalForWindow:[self window]
-		modalDelegate:self 
-	   didEndSelector:@selector(setNewDate)
-		  contextInfo:nil];
+	[[self window] beginSheet:calPanel completionHandler:^(NSModalResponse returnCode){
+		[self setNewDate];
+	}];
 }
 
 /**
@@ -877,10 +868,19 @@
 **/
 - (IBAction)changeCal:(id)sender
 {
-	int year = [[calYears titleOfSelectedItem] intValue];
-	int month = [calMonths indexOfSelectedItem]+1;
+	NSInteger year = [[calYears titleOfSelectedItem] intValue];
+	NSInteger month = [calMonths indexOfSelectedItem]+1;
 	
-	NSCalendarDate *date = [NSCalendarDate dateWithYear:year month:month day:1 hour:0 minute:0 second:0 timeZone:nil];
+	NSCalendar *calendar = [NSCalendar currentCalendar];
+	NSDateComponents *components = [[NSDateComponents alloc] init];
+	components.year = year;
+	components.month = month;
+	components.day = 1;
+	components.hour = 0;
+	components.minute = 0;
+	components.second = 0;
+	NSDate *date = [calendar dateFromComponents:components];
+	[components release];
 	
 	[calView setCalendarDate:date withValidDay:NO];
 }
@@ -888,7 +888,7 @@
 - (IBAction)closeCalPanel:(id)sender
 {
 	[calPanel orderOut:self];
-	[NSApp endSheet:calPanel];
+	[[self window] endSheet:calPanel returnCode:NSModalResponseOK];
 }
 
 - (void)setNewDate
@@ -912,7 +912,7 @@
 	// This is important, because this fires the tableSelectionDidChange method
 	[table deselectAll:self];
 	
-	int playlistIndex = [[playlists selectedItem] tag];
+	NSInteger playlistIndex = [[playlists selectedItem] tag];
 		
 	// Perform switch on table
 	[data setPlaylist:playlistIndex];
@@ -1004,7 +1004,7 @@
  Called automatically by Cocoa.
  Returns the number of items in the table.
 **/
-- (int)numberOfRowsInTableView:(NSTableView *)aTableView
+- (NSUInteger)numberOfRowsInTableView:(NSTableView *)aTableView
 {
 	return [[data table] count];
 }
@@ -1124,32 +1124,37 @@
 	if(([alarm schedule] == 0) && isRepeating)
 	{
 		// Repeating alarm type was selected, but no days were selected
-		NSBeginAlertSheet(NSLocalizedStringFromTable(@"Invalid alarm time", @"AlarmEditor", @"Main prompt in sheet"),
-						  NSLocalizedStringFromTable(@"OK", @"AlarmEditor", @"Dialog Button"), nil, nil,
-						  [self window], nil, nil, nil, NULL,
-						  NSLocalizedStringFromTable(@"Please select the days the alarm should repeat.", @"AlarmEditor", @"Sub prompt in sheet"));
+		NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+		[alert setMessageText:NSLocalizedStringFromTable(@"Invalid alarm time", @"AlarmEditor", @"Main prompt in sheet")];
+		[alert setInformativeText:NSLocalizedStringFromTable(@"Please select the days the alarm should repeat.", @"AlarmEditor", @"Sub prompt in sheet")];
+		[alert setAlertStyle:NSAlertStyleWarning];
+		[alert addButtonWithTitle:NSLocalizedStringFromTable(@"OK", @"AlarmEditor", @"Dialog Button")];
+		[alert beginSheetModalForWindow:self.window completionHandler:nil];
 		return;
 	}
 	
-	NSCalendarDate *dmy, *hm, *newTime;
+	NSDate *dmy, *hm, *newTime;
+	NSCalendar *calendar = [NSCalendar currentCalendar];
 	
 	// Set the time from timeField
-	hm = [[timeField dateValue] dateWithCalendarFormat:nil timeZone:nil];
+	hm = [timeField dateValue];
 	
 	// Set the date from the dateField if one-time alarm
 	//  or from a time in the past (yesterday) if a repeating alarm (It will get updated to the proper time)
-	if(!isRepeating)
-		dmy = [[dateField dateValue] dateWithCalendarFormat:nil timeZone:nil];
-	else
-		dmy = [[NSCalendarDate calendarDate] dateByAddingYears:0 months:0 days:-1 hours:0 minutes:0 seconds:0];
+	dmy = [dateField dateValue];
+	if(isRepeating) {
+		NSDateComponents *components = [[NSDateComponents alloc] init];
+		[components setDay:-1];
+		dmy = [calendar dateByAddingComponents:components toDate:[NSDate date] options:0];
+		[components release];
+	}
 	
-	int year  = [dmy yearOfCommonEra];
-	int month = [dmy monthOfYear];
-	int day   = [dmy dayOfMonth];
-	int hour  = [hm hourOfDay];
-	int min   = [hm minuteOfHour];
-	
-	newTime = [NSCalendarDate dateWithYear:year month:month day:day hour:hour minute:min second:0 timeZone:nil];
+	NSDateComponents *components = [calendar components:(NSCalendarUnitDay | NSCalendarUnitMonth | NSCalendarUnitYear) fromDate:dmy];
+	components.hour  = [calendar component:NSCalendarUnitHour fromDate:hm];
+	components.minute = [calendar component:NSCalendarUnitMinute fromDate:hm];
+	components.second = 0;
+
+	newTime = [calendar dateFromComponents:components];
 	
 	// Set the time
 	[alarm setTime:newTime];
@@ -1160,10 +1165,12 @@
 	// Ensure the time is at least a second or two after now
 	if([[alarm time] timeIntervalSinceNow] < 1)
 	{
-		NSBeginAlertSheet(NSLocalizedStringFromTable(@"Invalid alarm time", @"AlarmEditor", @"Main prompt in sheet"),
-						  NSLocalizedStringFromTable(@"OK", @"AlarmEditor", @"Dialog Button"), nil, nil,
-						  [self window], nil, nil, nil, NULL,
-						  NSLocalizedStringFromTable(@"Please select a date and time in the future.", @"AlarmEditor", @"Error message in AlarmEditor"));
+		NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+		[alert setMessageText:NSLocalizedStringFromTable(@"Invalid alarm time", @"AlarmEditor", @"Main prompt in sheet")];
+		[alert setInformativeText:NSLocalizedStringFromTable(@"Please select a date and time in the future.", @"AlarmEditor", @"Error message in AlarmEditor")];
+		[alert setAlertStyle:NSAlertStyleWarning];
+		[alert addButtonWithTitle:NSLocalizedStringFromTable(@"OK", @"AlarmEditor", @"Dialog Button")];
+		[alert beginSheetModalForWindow:self.window completionHandler:nil];
 	}
 	else
 	{
@@ -1261,7 +1268,7 @@
 	{
 		[sunMoonImage setHidden:NO];
 		
-		int hourOfDay = [[alarm time] hourOfDay];
+        NSInteger hourOfDay = [[NSCalendar currentCalendar] component:NSCalendarUnitHour fromDate:[alarm time]];
 		
 		if(hourOfDay >= 6 && hourOfDay < 18)
 			[sunMoonImage setImage:[NSImage imageNamed:@"sun.png"]];
@@ -1275,7 +1282,7 @@
 **/
 - (void)updateSearchLabel
 {
-	int tableCount = [[data table] count];
+	NSInteger tableCount = [[data table] count];
 	
 	if(tableCount == 1)
 	{

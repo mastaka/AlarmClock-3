@@ -8,18 +8,18 @@ int main (int argc, const char * argv[])
 	
 	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 	
-	NSString *event = [NSString stringWithCString:argv[1]];
+	NSString *event = [NSString stringWithUTF8String:argv[1]];
 	
-	NSString *dateStr = [NSString stringWithCString:argv[2]];
+	NSString *dateStr = [NSString stringWithUTF8String:argv[2]];
 	NSDate *date = [NSDate dateWithTimeIntervalSinceReferenceDate:[dateStr doubleValue]];
 	
-	NSString *scheduler = [NSString stringWithCString:getlogin()];
+	NSString *scheduler = [NSString stringWithUTF8String:getlogin()];
 	
 	// For some reason, G5's don't work with AutoWake, but do with AutoWakeOrPowerOn
 	// Not sure why this is, and if this is still true, but keeping it anyway.
 	//
 	//NSString *eventType = [NSString stringWithCString:kIOPMAutoWake];
-	NSString *eventType = [NSString stringWithCString:kIOPMAutoWakeOrPowerOn];
+	NSString *eventType = [NSString stringWithUTF8String:kIOPMAutoWakeOrPowerOn];
 	
 	int result = 1;
 	

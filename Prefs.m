@@ -109,7 +109,7 @@
 	[[NSUserDefaults standardUserDefaults] setFloat:volume forKey:ALARM_VOLUME_KEY];
 }
 
-+ (int)snoozeDuration
++ (NSInteger)snoozeDuration
 {
 	return [[NSUserDefaults standardUserDefaults] integerForKey:SNOOZE_DURATION_KEY];
 }
@@ -119,7 +119,7 @@
 	[[NSUserDefaults standardUserDefaults] setInteger:time forKey:SNOOZE_DURATION_KEY];
 }
 
-+ (int)killDuration
++ (NSInteger)killDuration
 {
 	return [[NSUserDefaults standardUserDefaults] integerForKey:KILL_DURATION_KEY];
 }
@@ -163,7 +163,7 @@
 	[[NSUserDefaults standardUserDefaults] setFloat:volume forKey:FINAL_VOLUME_KEY];
 }
 
-+ (int)easyWakeDuration
++ (NSInteger)easyWakeDuration
 {
 	return [[NSUserDefaults standardUserDefaults] integerForKey:EASY_WAKE_DURATION_KEY];
 }

@@ -24,25 +24,11 @@
 	if(![value isKindOfClass:[NSDate class]])
 		return nil;
 	
-	NSCalendarDate *date;
-	if([value isKindOfClass:[NSCalendarDate class]])
-		date = value;
-	else
-		date = [value dateWithCalendarFormat:nil timeZone:nil];
+	NSDate *date = value;
 	
-	int today = [[NSCalendarDate calendarDate] dayOfCommonEra];
-	int dateDay = [date dayOfCommonEra];
-	
-	
-	if(dateDay == today)
+	if([[NSCalendar currentCalendar] isDateInToday:date])
 	{
-		// NSUserDefaults Constant: NSThisDayDesignations:
-		// Key for an array of strings that specify what this day is called.
-		// The default is an array containing two strings, "today" and "now".
-		NSArray *todayDesignations;
-		
-		todayDesignations = [[NSUserDefaults standardUserDefaults] stringArrayForKey:NSThisDayDesignations];
-		NSString *todayStr = [[todayDesignations objectAtIndex:0] capitalizedString];
+		NSString *todayStr = NSLocalizedString(@"Today", @"Today");
 		
 		NSDateFormatter *df = [[[NSDateFormatter alloc] init] autorelease];
 		[df setFormatterBehavior:NSDateFormatterBehavior10_4];
@@ -51,15 +37,9 @@
 		
 		return [NSString stringWithFormat:@"%@ %@", todayStr, [df stringFromDate:date]]; 
 	}
-	else if(dateDay == (today-1))
+	else if([[NSCalendar currentCalendar] isDateInYesterday:date])
 	{
-		// NSUserDefaults Constant: NSPriorDayDesignations:
-		// Key for an array of strings that denote the day before today.
-		// The default is an array that contains a single string, "yesterday".
-		NSArray *yesterdayDesignations;
-		
-		yesterdayDesignations = [[NSUserDefaults standardUserDefaults] stringArrayForKey:NSPriorDayDesignations];
-		NSString *yesterdayStr = [[yesterdayDesignations objectAtIndex:0] capitalizedString];
+		NSString *yesterdayStr = NSLocalizedString(@"Yesterday", @"Yesterday");
 		
 		NSDateFormatter *df = [[[NSDateFormatter alloc] init] autorelease];
 		[df setFormatterBehavior:NSDateFormatterBehavior10_4];

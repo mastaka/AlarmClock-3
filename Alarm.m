@@ -17,8 +17,9 @@
 #define PERSISTENT_TRACK_ID_KEY    @"persistentTrackID"
 #define PERSISTENT_PLAYLIST_ID_KEY @"persistentPlaylistID"
 
-// For archiving, and unarchiving NSCalendarDates
-#define CALENDAR_FORMAT @"%Y-%m-%d %H:%M %z"
+// For archiving, and unarchiving NSDates
+#define CALENDAR_FORMAT @"yyyy-MM-dd HH:mm xx"
+#define CALENDAR_FORMAT_NOTZ @"yyyy-MM-dd HH:mm"
 
 
 @implementation Alarm
@@ -31,7 +32,7 @@
 static NSString *defaultAlarmFile;
 
 // Stores the index of the first day of the week for the user's locale
-static int firstDayOfWeek;
+static NSUInteger firstDayOfWeek;
 
 // INITIALIZATION
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -99,16 +100,18 @@ static int firstDayOfWeek;
 		persistentTrackID = nil;
 		persistentPlaylistID = nil;
 		
-		NSCalendarDate *now = [NSCalendarDate calendarDate];
+		NSDate *now = [NSDate date];
+		NSCalendar *calendar = [NSCalendar currentCalendar];
 		
 		// Use a default time of NOW, but make sure to set the seconds to ZERO
-		time = [[NSCalendarDate alloc] initWithYear:[now yearOfCommonEra]
-											  month:[now monthOfYear]
-												day:[now dayOfMonth]
-											   hour:[now hourOfDay]
-											 minute:[now minuteOfHour]
-											 second:0
-										   timeZone:[now timeZone]];
+		NSDateComponents *components = [calendar components:(NSCalendarUnitYear |
+															 NSCalendarUnitMonth |
+															 NSCalendarUnitDay |
+															 NSCalendarUnitHour |
+															 NSCalendarUnitMinute)
+												   fromDate:now];
+		components.second = 0;
+		time = [calendar dateFromComponents:components];
 	}
 	return self;
 }
@@ -149,18 +152,39 @@ static int firstDayOfWeek;
 			NSLog(@"Upgrading old time format to new version...");
 			
 			// Cast stored time as an NSDate
-			NSDate *date = storedTime;
-			
-			// Convert NSDate to NSCalendarDate
-			time = [[date dateWithCalendarFormat:nil timeZone:nil] retain];
+			NSDate *utc = storedTime;
+			NSTimeInterval timeZoneSeconds = [[NSTimeZone systemTimeZone] secondsFromGMTForDate:utc];
+			time = [[utc dateByAddingTimeInterval:timeZoneSeconds] retain];
 		}
 		else
 		{
-			// Convert stored time into NSCalendarDate
-			NSCalendarDate *date = [NSCalendarDate dateWithString:storedTime calendarFormat:CALENDAR_FORMAT];
-			
+			// Convert stored time into NSDate
+			NSDateFormatter *formatter = [[[NSDateFormatter alloc] init] autorelease];
+			[formatter setDateFormat:CALENDAR_FORMAT];
+			[formatter setLocale:[NSLocale localeWithLocaleIdentifier:@"en_US_POSIX"]];
+			NSDate *date = [formatter dateFromString:storedTime];
+			// Check whether time zone has changed since time storing
+			NSArray *dateElements = [storedTime componentsSeparatedByString:@" "];
+			NSInteger tzDiff = 0;
+			if (dateElements.count == 3)
+			{
+				NSUInteger tzIndex = [storedTime rangeOfString:@" " options:NSBackwardsSearch].location;
+				[formatter setDateFormat:CALENDAR_FORMAT_NOTZ];
+				[formatter setTimeZone:[NSTimeZone timeZoneForSecondsFromGMT:0]];
+				NSDate *dateWithoutTZ = [formatter dateFromString:[storedTime substringToIndex:tzIndex]];
+				NSInteger localDiff = [[NSTimeZone systemTimeZone] secondsFromGMTForDate:date];
+				NSInteger storedDiff = [dateWithoutTZ timeIntervalSinceReferenceDate] - [date timeIntervalSinceReferenceDate];
+				tzDiff = storedDiff - localDiff;
+			}
 			// Ensure that the date is correct for whatever time zone we're using
-			time = [[date dateBySwitchingToTimeZone:[NSTimeZone systemTimeZone]] retain];
+			if (tzDiff)
+			{
+				time = [[date dateByAddingTimeInterval:tzDiff] retain];
+			}
+			else
+			{
+				time = [date retain];
+			}
 		}
 		
 		// Pre 2.2 versions supported a termination date in the schedule (get rid of it)
@@ -239,7 +263,7 @@ static int firstDayOfWeek;
 
 /**
  Returns a dictionary with all the settings for this alarm.
-  
+ 
  Returns an autoreleased dictionary that contains all settings for the alarm in its current state.
  This dictionary may be stored to disk, and may later be used to created a duplicate of it.
 **/
@@ -261,8 +285,11 @@ static int firstDayOfWeek;
 	if(persistentPlaylistID != nil)
 		[dictionary setObject:persistentPlaylistID forKey:PERSISTENT_PLAYLIST_ID_KEY];
 	
-	// And finally, add the time to the dictionray
-	[dictionary setObject:[time descriptionWithCalendarFormat:CALENDAR_FORMAT] forKey:TIME_KEY];
+	// And finally, add the time to the dictionary
+	NSDateFormatter *formatter = [[[NSDateFormatter alloc] init] autorelease];
+	[formatter setLocale:[NSLocale localeWithLocaleIdentifier:@"en_US_POSIX"]];
+	[formatter setDateFormat:CALENDAR_FORMAT];
+	[dictionary setObject:[formatter stringFromDate:time] forKey:TIME_KEY];
 	
 	return dictionary;
 }
@@ -272,7 +299,7 @@ static int firstDayOfWeek;
 
 /**
  Updates the time and returns whether the alarm is expired or not.
-  
+ 
  Updates the time of the alarm, based on the schedule, to be after now.
  If the alarm has no updates, or has updates but is now expired, 'No' is returned.
  If it has updates and isn't expired, the time is properly updated and 'Yes' is returned.
@@ -281,7 +308,7 @@ static int firstDayOfWeek;
 **/
 - (BOOL)updateTime
 {
-	NSCalendarDate *now = [NSCalendarDate calendarDate];
+	NSDate *now = [NSDate date];
 	
 	// If we don't need to update the time, return YES
 	if([time isLaterDate:now]) return YES;
@@ -315,14 +342,14 @@ static int firstDayOfWeek;
 	{
 		found = NO;
 		int daysChecked = 1;
-		int nextDay = [time dayOfWeek];
+		NSInteger nextDay = [[NSCalendar currentCalendar] component:NSCalendarUnitWeekday fromDate:time] - 1;
 		while(!found && daysChecked <= 7)
 		{
 			nextDay = (nextDay + 1) % 7;
 			if(days[nextDay] == YES)
 			{
 				[time autorelease];
-				time = [[time dateByAddingYears:0 months:0 days:daysChecked hours:0 minutes:0 seconds:0] retain];
+				time = [[time dateByAddingTimeInterval:daysChecked*24*3600] retain];
 				found = YES;
 			}
 			daysChecked++;
@@ -396,7 +423,7 @@ static int firstDayOfWeek;
  Returns the repeat schedule for the alarm.
  The repeat schedule is formatted as follows:
  
- Schedule : 
+ Schedule :
  64  : Saturday   (2^(7-1))
  32  : Friday     (2^(6-1))
  16  : Thursday   (2^(5-1))
@@ -427,7 +454,7 @@ Returns whether or not the alarm is properly configured to play a track.
  
  This method takes into account the internal alarm type setting,
  as well as the trackID.  So if, for example, the alarm is configured to play a track,
- but the trackID is invalid, this method will return NO. 
+ but the trackID is invalid, this method will return NO.
  **/
 - (BOOL)isTrack
 {
@@ -536,7 +563,7 @@ Returns whether or not the alarm is properly configured to play a playlist.
  If it's a repeating alarm, this is the next time it is set to go off.
  After a repeating alarm goes off, updateTime should be called to change this time to the next alarm time.
 **/
-- (NSCalendarDate *)time
+- (NSDate *)time
 {
 	return time;
 }
@@ -545,7 +572,7 @@ Returns whether or not the alarm is properly configured to play a playlist.
  Sets the alarm's time.
  This is the next time the alarm is scheduled to go off.
 **/
-- (void)setTime:(NSCalendarDate *)newTime
+- (void)setTime:(NSDate *)newTime
 {
 	[time autorelease];
 	time = [newTime retain];
@@ -603,7 +630,7 @@ Returns whether or not the alarm is properly configured to play a playlist.
  This description is actually just a description of the schedule, and is made to be displayed in the NSStatusMenu.
 **/
 - (NSString *)description
-{	
+{
 	/* Get time description (based on user's preferences) */
 	
 	// First we configure a date formatter
@@ -650,7 +677,7 @@ Returns whether or not the alarm is properly configured to play a playlist.
 		}
 	}
 	
-	// And finally set the timeStr to be the formatted representation of the time	
+	// And finally set the timeStr to be the formatted representation of the time
 	NSString *timeStr = [timeFormatter stringFromDate:time];
 	
 	// And now it's time for the date...
@@ -661,7 +688,7 @@ Returns whether or not the alarm is properly configured to play a playlist.
 		int scheduleCopy = schedule;
 		
 		BOOL days[7];
-		int i;
+		NSInteger i;
 		for(i=6; i>=0; i--)
 		{
 			if(scheduleCopy >= pow(2, i))
@@ -675,7 +702,8 @@ Returns whether or not the alarm is properly configured to play a playlist.
 			}
 		}
 		
-		NSArray *shortWeekDays = [[NSUserDefaults standardUserDefaults] arrayForKey:NSShortWeekDayNameArray];
+		NSDateFormatter *formatter = [[[NSDateFormatter alloc] init] autorelease];
+		NSArray *shortWeekDays = [formatter shortWeekdaySymbols];
 		
 		NSMutableString *temp = [NSMutableString string];
 		[temp appendString:@"("];
@@ -705,13 +733,11 @@ Returns whether or not the alarm is properly configured to play a playlist.
 	{
 		NSString *dateStr;
 		
-		int today = [[NSCalendarDate calendarDate] dayOfCommonEra];
-		
-		if([time dayOfCommonEra] == today)
+		if([[NSCalendar currentCalendar] isDateInToday:time])
 		{
 			dateStr = NSLocalizedString(@"Today", @"Today");
 		}
-		else if([time dayOfCommonEra] == (today+1))
+		else if([[NSCalendar currentCalendar] isDateInTomorrow:time])
 		{
 			dateStr = NSLocalizedString(@"Tomorrow", @"Tomorrow");
 		}

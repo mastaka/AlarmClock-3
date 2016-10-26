@@ -1,5 +1,6 @@
 #import <Cocoa/Cocoa.h>
-#import <QTKit/QTKit.h>
+#import <AVFoundation/AVFoundation.h>
+#import <CoreMedia/CoreMedia.h>
 
 @class ITunesData;
 
@@ -10,7 +11,7 @@
 	ITunesData *iTunesData;
 	
 	// The current movie this object is playing
-	QTMovie *movie;
+	AVPlayer *movie;
 	
 	// Volume percentage at which to play movies
 	float volumePercentage;
@@ -21,7 +22,7 @@
 	
 	// Playlist Information
 	BOOL shouldShuffle;
-	int  playlistIndex;
+	NSInteger playlistIndex;
 	NSMutableArray *playlist;
 	
 	// Delegate

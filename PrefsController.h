@@ -9,7 +9,9 @@
 	
     IBOutlet id advancedView;
     IBOutlet id appleRemoteButton;
+#ifdef ENABLE_UPDATES
     IBOutlet id checkForUpdatesButton;
+#endif
     IBOutlet id coloredIconsButton;
     IBOutlet id deauthenticateButton;
     IBOutlet id easyWakeDefaultButton;
@@ -29,8 +31,10 @@
     IBOutlet id prefVolumeSlider;
     IBOutlet id snoozeDurationLabel;
     IBOutlet id snoozeDurationSlider;
+#ifdef ENABLE_UPDATES
     IBOutlet id softwareUpdateView;
     IBOutlet id updateIntervalPopup;
+#endif
     IBOutlet id wakeFromSleepButton;
     IBOutlet id window;
 }
@@ -41,9 +45,11 @@
 - (IBAction)setMinVolume:(id)sender;
 - (IBAction)setPrefVolume:(id)sender;
 - (IBAction)setSnoozeDuration:(id)sender;
+#ifdef ENABLE_UPDATES
 - (IBAction)setUpdateInterval:(id)sender;
-- (IBAction)toggleAppleRemote:(id)sender;
 - (IBAction)toggleCheckForUpdates:(id)sender;
+#endif
+- (IBAction)toggleAppleRemote:(id)sender;
 - (IBAction)toggleColoredIcons:(id)sender;
 - (IBAction)toggleEasyWakeDefault:(id)sender;
 - (IBAction)toggleKeyboard:(id)sender;

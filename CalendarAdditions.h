@@ -1,22 +1,22 @@
 #import <Foundation/Foundation.h>
 
-@interface NSCalendarDate (CalendarAdditions)
+@interface NSDate (CalendarAdditions)
 
 // For comparing dates
-- (BOOL)isEarlierDate:(NSCalendarDate *)anotherDate;
-- (BOOL)isLaterDate:(NSCalendarDate *)anotherDate;
+- (BOOL)isEarlierDate:(NSDate *)anotherDate;
+- (BOOL)isLaterDate:(NSDate *)anotherDate;
 
 // For extracting precision date components
 - (NSTimeInterval)intervalOfMinute;
 - (NSTimeInterval)intervalOfDay;
 
 // For laying out calendars
-- (BOOL) isLeapYear;
-- (int) daysInMonth;
-- (int) startingWeekdayOfMonth;
+- (NSUInteger) daysInMonth;
+- (NSUInteger) monthsInYear;
+- (NSUInteger) startingWeekdayOfMonth;
 
 // For altering dates
-- (NSCalendarDate *)dateByRollingYears:(int)year months:(int)month days:(int)day hours:(int)hour minutes:(int)minute seconds:(int)second;
-- (NSCalendarDate *)dateBySwitchingToTimeZone:(NSTimeZone *)newTimeZone;
+- (NSDate *)dateByRollingYears:(int)year months:(int)month days:(int)day hours:(int)hour minutes:(int)minute seconds:(int)second;
+- (NSDate *)dateBySwitchingToTimeZone:(NSTimeZone *)newTimeZone;
 
 @end

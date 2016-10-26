@@ -24,7 +24,7 @@
 	MTCoreAudioDevice *outputDevice;
 	
 	// Time when alarm started, or (if snoozing) when it will start again
-	NSCalendarDate *startTime;
+	NSDate *startTime;
 	
 	// For displaying the current time
 	NSDateFormatter *timeFormatter;
@@ -44,9 +44,9 @@
 	// Preferences
 	BOOL anyKeyStops;
 	BOOL isDigitalAudio;
-	int easyWakeDuration;
-	int snoozeDuration;
-	int killDuration;
+	NSInteger easyWakeDuration;
+	NSInteger snoozeDuration;
+	NSInteger killDuration;
 	float prefVolume;
 	float minVolume;
 	float maxVolume;

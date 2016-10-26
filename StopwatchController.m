@@ -423,7 +423,7 @@
  We don't actually need to wake the computer at any time, so we return nil.
  However, we may need to prepare for sleep.
 **/
-- (NSCalendarDate *)systemWillSleep
+- (NSDate *)systemWillSleep
 {
 	// Nothing to do here
 	// Total time is calculated using the elapsed times, and the startDate
@@ -545,14 +545,14 @@
 	[alwaysOnTopButton setState:([[self window] level] == NSStatusWindowLevel) ? NSOnState: NSOffState];
 	
 	// Present the config sheet
-	[NSApp beginSheet:configPanel modalForWindow:[self window] modalDelegate:self didEndSelector:nil contextInfo:NULL];
+	[[self window] beginSheet:configPanel completionHandler:nil];
 }
 
 - (IBAction)closeConfigPanel:(id)sender
 {
 	// Close the configPanel and end the sheet
 	[configPanel orderOut:self];
-	[NSApp endSheet:configPanel];
+	[[self window] endSheet:configPanel returnCode:NSModalResponseOK];
 	
 	// Store the new name
 	[titleStr release];

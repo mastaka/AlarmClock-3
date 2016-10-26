@@ -3,7 +3,9 @@
 #import "AlarmTasks.h"
 #import "AppleRemote.h"
 
+#ifdef ENABLE_UPDATES
 #import <Sparkle/Sparkle.h>
+#endif
 
 @interface PrefsController (PrivateAPI)
 - (BOOL)isLoginItem;
@@ -39,23 +41,24 @@
     [item3 setImage:[NSImage imageNamed:@"Advanced.png"]];
     [item3 setTarget:self];
     [item3 setAction:@selector(switchViews:)];
-	
+#ifdef ENABLE_UPDATES
 	NSToolbarItem *item4 = [[[NSToolbarItem alloc] initWithItemIdentifier:@"Software Update"] autorelease];
     [item4 setLabel:NSLocalizedString(@"Software Update", @"Preference Pane Option")];
     [item4 setImage:[NSImage imageNamed:@"SoftwareUpdate.png"]];
     [item4 setTarget:self];
     [item4 setAction:@selector(switchViews:)];
-	
+#endif
     [items setObject:item1 forKey:[item1 itemIdentifier]];
 	[items setObject:item2 forKey:[item2 itemIdentifier]];
 	[items setObject:item3 forKey:[item3 itemIdentifier]];
+#ifdef ENABLE_UPDATES
 	[items setObject:item4 forKey:[item4 itemIdentifier]];
-	
+#endif
     // Any other items you want to add, do so here.
     // After you are done, just do all the toolbar stuff.
 	
     toolbar = [[[NSToolbar alloc] initWithIdentifier:@"PreferencePanes"] autorelease];
-    [toolbar setDelegate:self];
+    [toolbar setDelegate:(id)self];
     [toolbar setAllowsUserCustomization:NO];
     [toolbar setAutosavesConfiguration:NO];
     
@@ -70,10 +73,10 @@
 	[prefVolumeSlider setIntValue:([Prefs prefVolume] * 100)];
 	[self setPrefVolume:prefVolumeSlider];
 	
-	[snoozeDurationSlider setIntValue:[Prefs snoozeDuration]];
+	[snoozeDurationSlider setIntValue:(int)[Prefs snoozeDuration]];
 	[self setSnoozeDuration:snoozeDurationSlider];
 	
-	[killDurationSlider setIntValue:[Prefs killDuration]];
+	[killDurationSlider setIntValue:(int)[Prefs killDuration]];
 	[self setKillDuration:killDurationSlider];
 	
 	// Easy wake
@@ -85,7 +88,7 @@
 	[maxVolumeSlider setIntValue:([Prefs maxVolume] * 100)];
 	[self setMaxVolume:maxVolumeSlider];
 	
-	[easyWakeDurationSlider setIntValue:[Prefs easyWakeDuration]];
+	[easyWakeDurationSlider setIntValue:(int)[Prefs easyWakeDuration]];
 	[self setEasyWakeDuration:easyWakeDurationSlider];
 	
 	// Advanced
@@ -99,6 +102,7 @@
 	
 	[loginButton setState:([Prefs launchAtLogin] ? NSOnState: NSOffState)];
 	
+#ifdef ENABLE_UPDATES
 	// Software Update
 	int updateInterval = [[NSUserDefaults standardUserDefaults] integerForKey:SUScheduledCheckIntervalKey];
 	[checkForUpdatesButton setState:(updateInterval > 0) ? NSOnState : NSOffState];
@@ -124,6 +128,7 @@
 		[updateIntervalPopup setEnabled:NO];
 		[updateIntervalPopup selectItemAtIndex:1];
 	}
+#endif
 	
 	// Switch to the default view
 	[self switchViews:nil];
@@ -148,10 +153,12 @@
 		[NSApp activateIgnoringOtherApps:YES];
 		
 		// Display the information window
-		NSString *title = NSLocalizedString(@"Reauthentication Required", @"Dialog Title");
-		NSString *message = NSLocalizedString(@"Internal components of the application have changed. Reauthentication is required to wake the computer from sleep.", @"Dialog Message");
-		NSString *okButton = NSLocalizedString(@"OK", @"Dialog Button");
-		NSBeginAlertSheet(title, okButton, nil, nil, window, self, NULL, NULL, nil, message);
+		NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+		[alert setMessageText:NSLocalizedString(@"Reauthentication Required", @"Dialog Title")];
+		[alert setInformativeText:NSLocalizedString(@"Internal components of the application have changed. Reauthentication is required to wake the computer from sleep.", @"Dialog Message")];
+		[alert setAlertStyle:NSAlertStyleWarning];
+		[alert addButtonWithTitle:NSLocalizedString(@"OK", @"Dialog Button")];
+		[alert beginSheetModalForWindow:window completionHandler:nil];
 		
 		// Also, this means that the user is upgrading their app
 		// So turn off isFirstRun because they don't need the welcome message
@@ -252,10 +259,12 @@
 	else if([sender isEqualToString:@"Advanced"]) {
 		prefsView = advancedView;
 	}
+#ifdef ENABLE_UPDATES
 	else if([sender isEqualToString:@"Software Update"]) {
 		prefsView = softwareUpdateView;
 	}
-    
+#endif
+
 	// To stop flicker, we make a temp blank view.
 	NSView *tempView = [[NSView alloc] initWithFrame:[[window contentView] frame]];
 	[window setContentView:tempView];
@@ -514,6 +523,7 @@
 	[script release];
 }
 
+#ifdef ENABLE_UPDATES
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma mark Software Update Options:
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -538,5 +548,6 @@
 	int updateInterval = [sender selectedTag];
 	[[NSUserDefaults standardUserDefaults] setInteger:updateInterval forKey:SUScheduledCheckIntervalKey];
 }
+#endif
 
 @end

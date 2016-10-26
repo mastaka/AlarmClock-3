@@ -19,7 +19,7 @@
 + (NSArray *)stopwatchWindows;
 
 + (BOOL)canSystemSleep;
-+ (NSCalendarDate *)systemWillSleep;
++ (NSDate *)systemWillSleep;
 + (void)systemDidWake;
 
 @end

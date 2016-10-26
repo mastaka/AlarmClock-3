@@ -392,7 +392,8 @@ static AppleRemote *sharedInstance = nil;
 			if (object == nil || ![object isKindOfClass:[NSNumber class]]) continue;			
 			usagePage = [object longValue];
 			
-			AppleRemoteCookieIdentifier cid = -1;
+			AppleRemoteCookieIdentifier cid;
+			BOOL cidSet = TRUE;
 			switch(usage) {
 				case 140:
 					cid = kRemoteButtonVolume_Plus;
@@ -423,17 +424,18 @@ static AppleRemote *sharedInstance = nil;
 					break;
 				default:
 					//NSLog(@"Usage %d will not be used", usage);
+                    cidSet = FALSE;
 					break;
 			}
 			
-			if (cid != -1) {
+			if (cidSet) {
 				if (cid < NUMBER_OF_APPLE_REMOTE_ACTIONS) {
 					cookies[cid] = cookie;
 				} else {
 					NSLog(@"Invalid index %d for cookie. No slot to store the cookie.", cid);
 				}
 			}
-			//NSLog(@"%d: usage = %d and page = %d", cookie, usage, usagePage);			
+			NSLog(@"%d: usage = %ld and page = %ld", cookie, usage, usagePage);
 		}
 	} else {
 		return NO;
@@ -444,8 +446,6 @@ static AppleRemote *sharedInstance = nil;
 
 - (BOOL) openDevice 
 {
-	HRESULT  result;
-	
 	IOHIDOptionsType openMode = kIOHIDOptionsTypeNone;
 	if ([self isOpenInExclusiveMode]) openMode = kIOHIDOptionsTypeSeizeDevice;	
 	IOReturn ioReturnValue = (*hidDeviceInterface)->open(hidDeviceInterface, openMode);	
@@ -453,7 +453,7 @@ static AppleRemote *sharedInstance = nil;
 	if (ioReturnValue == KERN_SUCCESS) {
 		queue = (*hidDeviceInterface)->allocQueue(hidDeviceInterface);
 		if (queue) {
-			result = (*queue)->create(queue, 0,
+			(*queue)->create(queue, 0,
 									  8);	//depth: maximum number of elements in queue before oldest elements in queue begin to be lost.
 			
 			int i=0;
