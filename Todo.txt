@@ -1,3 +1,7 @@
+FOR 2.5.0 RELEASE
+
+1. Replace depreciated AuthorizationExecuteWithPrivileges
+
 FOR 2.4.2 RELEASE
 
 1. Add norwegian localization!

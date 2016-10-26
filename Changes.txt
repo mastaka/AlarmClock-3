@@ -354,3 +354,7 @@ Updated Hungarian Localization
 
 RELEASE 2.4.6
 
+RELEASE 2.5.0 (Bartek Fabiszewski)
+
+Updated to build on MacOS Sierra
+Replaced depreciated functions
