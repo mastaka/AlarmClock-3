@@ -43,7 +43,7 @@
 		// Intialize movie
 		NSBundle *thisBundle = [NSBundle bundleForClass:[self class]];
 		NSString *filePath = [[thisBundle resourcePath] stringByAppendingPathComponent:@"defaultTimer.m4a"];
-		NSURL *url = [NSURL URLWithString:filePath];
+		NSURL *url = [NSURL fileURLWithPath:filePath];
 		movie = [[AVPlayer alloc] initWithURL:url];
 		
 		// Initialize localized strings

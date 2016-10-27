@@ -167,7 +167,7 @@
 		if([[track objectForKey:@"Track Type"] isEqualToString:@"File"])
 		{
 			// Assume the location points to a standard audio file
-			NSURL *url = [NSURL URLWithString:[track objectForKey:@"Location"]];
+			NSURL *url = [NSURL fileURLWithPath:[track objectForKey:@"Location"]];
 			
 			movie = [[AVPlayer alloc] initWithURL:url];
 			
