@@ -801,7 +801,7 @@
 {
 	// This method is called for every movie in the application finishing
 	// Check to make sure the movie is the one we're looking for
-	if(movie == [notification object])
+	if(movie.currentItem == [notification object])
 	{
 		// If we are using the alarm volume
 		if(useAlarmVolume)
@@ -812,6 +812,8 @@
 			[outputDevice setVolume:initialLeftVolume  forChannel:1 forDirection:kMTCoreAudioDevicePlaybackDirection];
 			[outputDevice setVolume:initialRightVolume forChannel:2 forDirection:kMTCoreAudioDevicePlaybackDirection];
 		}
+		// Rewind movie
+		[movie.currentItem seekToTime:kCMTimeZero];
 	}
 }
 
